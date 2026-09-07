@@ -32,7 +32,28 @@ def generate_base_trade(
     rng: Random,
 ) -> SyntheticTrade:
     """Generate one valid base trade before scenario-specific mutations."""
-    raise NotImplementedError("TR-016: implement generate_base_trade")
+    synthetic_trade: dict[str, Any]
+    synthetic_trade["event_id"] = "001"
+    synthetic_trade["trade_id"] = "T001"
+    synthetic_trade["trade_version"] = "1"
+    synthetic_trade["event_type"] = "NEW"
+    synthetic_trade["event_time"] = "1788784159"
+    synthetic_trade["schema_version"] = "v1"
+    synthetic_trade["instrument_id"] = "I001"
+    synthetic_trade["instrument_type"] = "EQUITY"
+    synthetic_trade["side"] = "BUY"
+    synthetic_trade["quantity"] = "100"
+    synthetic_trade["price"] = "1.21"
+    synthetic_trade["currency"] = "USD"
+    synthetic_trade["account_id"] = "AC001"
+    synthetic_trade["portfolio_id"] = "P001"
+    synthetic_trade["broker_id"] = "BROKER_A"
+    synthetic_trade["venue_id"] = "V001"
+    synthetic_trade["trade_date"] = "1788739200"
+    synthetic_trade["execution_timestamp"] = "1788804135"
+    synthetic_trade["settlement_date"] = "1788805800"
+    synthetic_trade["published_at"] = "1788804145"
+    return synthetic_trade
 
 
 def generate_scenario(
