@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments / build artifacts
+.venv/
+venv/
+build/
+dist/
+*.whl
+*.egg-info/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Generated synthetic data
+data/synthetic/*
+!data/synthetic/.gitkeep
+
+# Local Databricks / Terraform state
+.databricks/
+.terraform/
+*.tfstate
+*.tfstate.*
