@@ -7,6 +7,7 @@ Implement the generator logic hands-on and replace each NotImplementedError.
 from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta, timezone
+from decimal import Decimal
 from pathlib import Path
 from random import Random
 from typing import Any, Mapping, Sequence
@@ -42,6 +43,7 @@ def generate_base_trade(
     side = rng.choice(("BUY", "SELL"))
     quantity = rng.randrange(1, 501) * 10
     price_cents = rng.randrange(1_000, 50_001)
+    price = (Decimal(price_cents) / Decimal("100")).quantize(Decimal("0.0000000001"))
 
     execution_time = datetime.combine(
         business_date,
@@ -63,7 +65,7 @@ def generate_base_trade(
         "instrument_type": "EQUITY",
         "side": side,
         "quantity": f"{quantity:.6f}",
-        "price": f"{price_cents / 100:.10f}",
+        "price": format(price, "f"),
         "currency": "USD",
         "account_id": f"ACC{((trade_index - 1) % 1000) + 1:06d}",
         "portfolio_id": f"PORT{((trade_index - 1) % 100) + 1:04d}",
