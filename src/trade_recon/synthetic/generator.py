@@ -6,7 +6,7 @@ Implement the generator logic hands-on and replace each NotImplementedError.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from random import Random
 from typing import Any, Mapping, Sequence
@@ -32,27 +32,48 @@ def generate_base_trade(
     rng: Random,
 ) -> SyntheticTrade:
     """Generate one valid base trade before scenario-specific mutations."""
-    synthetic_trade: dict[str, Any]
-    synthetic_trade["event_id"] = "001"
-    synthetic_trade["trade_id"] = "T001"
-    synthetic_trade["trade_version"] = "1"
-    synthetic_trade["event_type"] = "NEW"
-    synthetic_trade["event_time"] = "1788784159"
-    synthetic_trade["schema_version"] = "v1"
-    synthetic_trade["instrument_id"] = "I001"
-    synthetic_trade["instrument_type"] = "EQUITY"
-    synthetic_trade["side"] = "BUY"
-    synthetic_trade["quantity"] = "100"
-    synthetic_trade["price"] = "1.21"
-    synthetic_trade["currency"] = "USD"
-    synthetic_trade["account_id"] = "AC001"
-    synthetic_trade["portfolio_id"] = "P001"
-    synthetic_trade["broker_id"] = "BROKER_A"
-    synthetic_trade["venue_id"] = "V001"
-    synthetic_trade["trade_date"] = "1788739200"
-    synthetic_trade["execution_timestamp"] = "1788804135"
-    synthetic_trade["settlement_date"] = "1788805800"
-    synthetic_trade["published_at"] = "1788804145"
+    if trade_index < 1:
+        raise ValueError("trade_index must be greater than zero")
+
+    instruments = ("AAPL", "MSFT", "GOOG", "AMZN")
+    venues = ("XNAS", "XNYS")
+
+    instrument_id = rng.choice(instruments)
+    side = rng.choice(("BUY", "SELL"))
+    quantity = rng.randrange(1, 501) * 10
+    price_cents = rng.randrange(1_000, 50_001)
+
+    execution_time = datetime.combine(
+        business_date,
+        time(hour=14, minute=30),
+        tzinfo=timezone.utc,
+    ) + timedelta(seconds=rng.randrange(0, 6 * 60 * 60))
+
+    event_time = execution_time + timedelta(seconds=rng.randrange(0, 5))
+    published_at = event_time + timedelta(seconds=rng.randrange(1, 31))
+
+    synthetic_trade: dict[str, Any] = {
+        "event_id": f"OMS-EVT-{trade_index:08d}-V001",
+        "trade_id": f"TRD{trade_index:08d}",
+        "trade_version": 1,
+        "event_type": "NEW",
+        "event_time": event_time.isoformat(),
+        "schema_version": "1.0",
+        "instrument_id": instrument_id,
+        "instrument_type": "EQUITY",
+        "side": side,
+        "quantity": f"{quantity:.6f}",
+        "price": f"{price_cents / 100:.10f}",
+        "currency": "USD",
+        "account_id": f"ACC{((trade_index - 1) % 1000) + 1:06d}",
+        "portfolio_id": f"PORT{((trade_index - 1) % 100) + 1:04d}",
+        "broker_id": "BROKER_A",
+        "venue_id": rng.choice(venues),
+        "trade_date": business_date.isoformat(),
+        "execution_timestamp": execution_time.isoformat(),
+        "settlement_date": (business_date + timedelta(days=2)).isoformat(),
+        "published_at": published_at.isoformat(),
+    }
     return synthetic_trade
 
 
