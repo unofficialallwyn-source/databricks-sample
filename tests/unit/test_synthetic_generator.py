@@ -23,27 +23,24 @@ def test_generate_base_trade_is_deterministic_for_same_seed() -> None:
     assert first == second
 
 
-def test_generate_base_trade_follows_basic_oms_contract() -> None:
-    """Base trade should use deterministic IDs and contract-compatible field formats."""
+def test_generate_base_trade_is_source_neutral_and_valid() -> None:
+    """Base trade should contain business economics, not OMS/Broker event metadata."""
     business_date = date(2026, 9, 7)
 
     trade = generate_base_trade(7, business_date, Random(12345))
 
-    assert trade["event_id"] == "OMS-EVT-00000007-V001"
-    assert trade["trade_id"] == "TRD00000007"
-    assert trade["trade_version"] == 1
-    assert trade["event_type"] == "NEW"
-    assert trade["schema_version"] == "1.0"
+    assert trade["business_trade_id"] == "TRD00000007"
     assert trade["trade_date"] == "2026-09-07"
     assert trade["settlement_date"] == "2026-09-09"
     assert trade["instrument_type"] == "EQUITY"
     assert trade["broker_id"] == "BROKER_A"
-    assert trade["event_time"].endswith("+00:00")
     assert trade["execution_timestamp"].endswith("+00:00")
-    assert trade["published_at"].endswith("+00:00")
-
     assert Decimal(trade["quantity"]) > 0
     assert Decimal(trade["price"]) > 0
+
+    assert "event_id" not in trade
+    assert "trade_version" not in trade
+    assert "schema_version" not in trade
 
 
 @pytest.mark.skip(reason="Implement TR-016 dataset orchestration.")
