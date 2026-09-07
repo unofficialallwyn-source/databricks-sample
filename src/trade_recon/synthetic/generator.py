@@ -83,7 +83,31 @@ def generate_oms_events(
     rng: Random,
 ) -> list[OmsEvent]:
     """Generate OMS JSONL-compatible source events for one synthetic trade."""
-    raise NotImplementedError("TR-016: implement generate_oms_events")
+    event_id = rng.randrange(1, 9999999)
+    trade_version = rng.randrange(1, 10)
+    oms_event: dict[str, Any] = {
+        "event_id" : f"OMS_{event_id}",
+        "trade_id" : trade.get("business_trade_id"),
+        "trade_version" : f"{trade_version:.1f}",
+        "event_type" : rng.choice(("NEW", "AMEND")),
+        "event_time" : trade.get("event_time"),
+        "schema_version" : "1.0",
+        "instrument_id" : trade.get("instrument_id"),
+        "instrument_type" : trade.get("instrument_type"),
+        "side" : trade.get("side"),
+        "quantity" : trade.get("quantity"),
+        "price" : trade.get("price"),
+        "currency" : trade.get("currency"),
+        "account_id" : trade.get("account_id"),
+        "portfolio_id" : trade.get("portfolio_id"),
+        "broker_id" : trade.get("broker_id"),
+        "venue_id" : trade.get("venue_id"),
+        "trade_date" : trade.get("trade_date"),
+        "execution_timestamp" : trade.get("execution_timestamp"),
+        "settlement_date" : trade.get("settlement_date"),
+        "published_at" : trade.get("published_at"),
+    }
+    return [oms_event]
 
 
 def generate_broker_events(
