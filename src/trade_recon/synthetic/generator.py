@@ -32,15 +32,13 @@ def generate_base_trade(
     business_date: date,
     rng: Random,
 ) -> SyntheticTrade:
-    """Generate one valid base trade before scenario-specific mutations."""
+    """Generate source-neutral trade economics before OMS/Broker wrapping."""
     if trade_index < 1:
         raise ValueError("trade_index must be greater than zero")
 
     instruments = ("AAPL", "MSFT", "GOOG", "AMZN")
     venues = ("XNAS", "XNYS")
 
-    instrument_id = rng.choice(instruments)
-    side = rng.choice(("BUY", "SELL"))
     quantity = rng.randrange(1, 501) * 10
     price_cents = rng.randrange(1_000, 50_001)
     price = (Decimal(price_cents) / Decimal("100")).quantize(Decimal("0.0000000001"))
@@ -51,19 +49,11 @@ def generate_base_trade(
         tzinfo=timezone.utc,
     ) + timedelta(seconds=rng.randrange(0, 6 * 60 * 60))
 
-    event_time = execution_time + timedelta(seconds=rng.randrange(0, 5))
-    published_at = event_time + timedelta(seconds=rng.randrange(1, 31))
-
     synthetic_trade: dict[str, Any] = {
-        "event_id": f"OMS-EVT-{trade_index:08d}-V001",
-        "trade_id": f"TRD{trade_index:08d}",
-        "trade_version": 1,
-        "event_type": "NEW",
-        "event_time": event_time.isoformat(),
-        "schema_version": "1.0",
-        "instrument_id": instrument_id,
+        "business_trade_id": f"TRD{trade_index:08d}",
+        "instrument_id": rng.choice(instruments),
         "instrument_type": "EQUITY",
-        "side": side,
+        "side": rng.choice(("BUY", "SELL")),
         "quantity": f"{quantity:.6f}",
         "price": format(price, "f"),
         "currency": "USD",
@@ -74,7 +64,6 @@ def generate_base_trade(
         "trade_date": business_date.isoformat(),
         "execution_timestamp": execution_time.isoformat(),
         "settlement_date": (business_date + timedelta(days=2)).isoformat(),
-        "published_at": published_at.isoformat(),
     }
     return synthetic_trade
 
