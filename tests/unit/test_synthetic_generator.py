@@ -75,9 +75,9 @@ def test_write_oms_jsonl_creates_expected_files(tmp_path):
     oms_event2 = generate_oms_events(trade=trade2,scenario=None,rng=Random(7433))
     oms_event3 = generate_oms_events(trade=trade3,scenario=None,rng=Random(5860))
     oms_events = list()
-    oms_events.append(oms_event1)
-    oms_events.append(oms_event2)
-    oms_events.append(oms_event3)
+    oms_events.append(oms_event1[0])
+    oms_events.append(oms_event2[0])
+    oms_events.append(oms_event3[0])
     
     output_folder = tmp_path/"oms_jsonl_trades"
     file_paths = write_oms_jsonl(output_path=output_folder,events=oms_events,records_per_file=2)
