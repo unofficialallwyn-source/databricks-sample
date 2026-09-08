@@ -83,21 +83,15 @@ def generate_oms_events(
     rng: Random,
 ) -> list[OmsEvent]:
     """Generate OMS JSONL-compatible source events for one synthetic trade."""
-    event_time = datetime.combine(
-            trade.get("execution_timestamp"),
-            time(hour=0, minute=0),
-            tzinfo=timezone.utc,
-        ) + timedelta(seconds=rng.randrange(0, 6 * 60 * 60))
-    published_at = datetime.combine(
-                event_time,
-                time(hour=0, minute=0),
-                tzinfo=timezone.utc,
+    event_time = datetime.fromisoformat(trade.get("execution_timestamp")
+            ) + timedelta(seconds=rng.randrange(0, 6 * 60 * 60))
+    published_at = datetime.fromisoformat(event_time.isoformat()
             ) + timedelta(seconds=rng.randrange(0, 6 * 60 * 60))
     
     oms_event: dict[str, Any] = {
-        "event_id" : f"{trade.get("business_trade_id")}_1",
-        "trade_id" : trade.get("business_trade_id"),
-        "trade_version" : "1",
+        "event_id" : f"OMS-EVT-{trade["business_trade_id"]}-V001",
+        "trade_id" : trade["business_trade_id"],
+        "trade_version" : 1,
         "event_type" : "NEW",
         "event_time" : event_time.isoformat(),
         "schema_version" : "1.0",
@@ -125,20 +119,19 @@ def generate_broker_events(
     rng: Random,
 ) -> list[BrokerEvent]:
     """Generate Broker A CSV-compatible source events for one synthetic trade."""
-    broker_id = rng.randrange(1, 99999)
-    published_at = datetime.combine(
-                time.time(),
-                time(hour=0, minute=0),
-                tzinfo=timezone.utc,
+
+    confirmation_time = datetime.fromisoformat(trade.get("execution_timestamp")
             ) + timedelta(seconds=rng.randrange(0, 6 * 60 * 60))
+    published_at = datetime.fromisoformat(confirmation_time.isoformat()
+                ) + timedelta(seconds=rng.randrange(0, 6 * 60 * 60))
     
     borker_event: dict[str, Any] = {
-        "confirmation_event_id" : f"{trade.get("business_trade_id")}_1",
-        "broker_trade_id" : f"BRK_TRD{broker_id:08d}",
+        "confirmation_event_id" : f"BRK-EVT-{trade["business_trade_id"]}-V001",
+        "broker_trade_id" : f"BRK-{trade["business_trade_id"]}",
         "client_trade_id" : trade["business_trade_id"],
         "confirmation_version": 1,
         "confirmation_type":"CONFIRM",
-        "confirmation_time" : int(time.time()),
+        "confirmation_time" : confirmation_time.isoformat(),
         "schema_version":"1.0",
         "instrument_code" : trade.get("instrument_id"),
         "instrument_type" : trade.get("instrument_type"),
@@ -251,3 +244,5 @@ def create_conflicting_redelivery(
 ) -> dict[str, Any]:
     """Reuse an event ID while changing payload content to test CONFLICTING_EVENT_ID handling."""
     raise NotImplementedError("TR-016: implement create_conflicting_redelivery")
+
+
