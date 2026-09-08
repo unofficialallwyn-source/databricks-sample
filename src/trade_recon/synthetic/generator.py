@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
-import json
+import json, logging
 from pathlib import Path
 from random import Random
 from typing import Any, Mapping, Sequence
@@ -22,6 +22,12 @@ DeliveryBatch = Mapping[str, Any]
 GenerationManifest = Mapping[str, Any]
 ExpectedResult = Mapping[str, Any]
 
+logging.basicConfig(
+    filename='app.log',
+    level=logging.DEBUG,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 def generate_dataset(config: GeneratorConfig) -> GenerationManifest:
     """Generate a complete deterministic synthetic dataset and return its manifest."""
@@ -168,9 +174,7 @@ def write_oms_jsonl(
     """Write immutable OMS JSONL files and return generated file paths."""
     paths = list()
     
-    
     if isinstance(output_path, str):
-        output_dir = None
         output_dir = Path(output_path)
         output_dir.mkdir(parents=True, exist_ok=True)
     else: 
@@ -193,10 +197,8 @@ def write_oms_jsonl(
             file_name = f"oms_part_{(index+1):05d}.jsonl"
             full_path = output_dir/file_name
             with open(full_path, "w", encoding="utf-8") as f:
-                for events in group_event:
-                    for event in events:
-                        f.write(json.dumps(event))
-                        f.write("\n")
+                f.write(json.dumps(event))
+                f.write("\n")
             paths.append(full_path)
     return paths
 

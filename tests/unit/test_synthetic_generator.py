@@ -90,7 +90,7 @@ def test_write_oms_jsonl_creates_expected_files(tmp_path):
                 file_records.append(json.loads(clean_line))
 
     assert len(file_paths) == 2
-    assert file_records[0]["event_id"] == oms_event1[0]["event_id"]
+    assert file_records[0]["event_id"] == oms_event3[0]["event_id"]
 
 
 @pytest.mark.skip(reason="Implement TR-016 dataset orchestration.")
