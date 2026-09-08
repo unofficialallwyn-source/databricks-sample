@@ -6,6 +6,7 @@ Enable the remaining scenario tests incrementally as each capability is implemen
 
 from datetime import date
 from decimal import Decimal
+import json
 from random import Random
 
 import pytest
@@ -65,7 +66,7 @@ def test_oms_trade_and_broker_trade_is_exact_match() -> None:
     assert broker_event[0].get("published_at") >= broker_event[0].get("confirmation_time")
 
 
-def test_write_oms_jsonl_creates_expected_files():
+def test_write_oms_jsonl_creates_expected_files(tmp_path):
     business_date = date(2026, 9, 7)
     trade1 = generate_base_trade(1, business_date, Random(1986))
     trade2 = generate_base_trade(2, business_date, Random(7433))
@@ -73,15 +74,23 @@ def test_write_oms_jsonl_creates_expected_files():
     oms_event1 = generate_oms_events(trade=trade1,scenario=None,rng=Random(1986))
     oms_event2 = generate_oms_events(trade=trade2,scenario=None,rng=Random(7433))
     oms_event3 = generate_oms_events(trade=trade3,scenario=None,rng=Random(5860))
-    oms_events = []
+    oms_events = list()
     oms_events.append(oms_event1)
     oms_events.append(oms_event2)
     oms_events.append(oms_event3)
     
-    output_folder = "/workspaces/databricks-sample/oms_jsonl_trades"
+    output_folder = tmp_path/"oms_jsonl_trades"
     file_paths = write_oms_jsonl(output_path=output_folder,events=oms_events,records_per_file=2)
 
+    file_records = []
+    with open(file_paths[0], "r", encoding="utf-8") as f:
+        for line in f:
+            clean_line = line.strip()
+            if clean_line:
+                file_records.append(json.loads(clean_line))
+
     assert len(file_paths) == 2
+    assert file_records[0]["event_id"] == oms_event1[0]["event_id"]
 
 
 @pytest.mark.skip(reason="Implement TR-016 dataset orchestration.")
