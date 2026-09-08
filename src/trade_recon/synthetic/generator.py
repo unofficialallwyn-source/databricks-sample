@@ -83,29 +83,38 @@ def generate_oms_events(
     rng: Random,
 ) -> list[OmsEvent]:
     """Generate OMS JSONL-compatible source events for one synthetic trade."""
-    event_id = rng.randrange(1, 9999999)
-    trade_version = rng.randrange(1, 10)
+    event_time = datetime.combine(
+            trade.get("execution_timestamp"),
+            time(hour=0, minute=0),
+            tzinfo=timezone.utc,
+        ) + timedelta(seconds=rng.randrange(0, 6 * 60 * 60))
+    published_at = datetime.combine(
+                event_time,
+                time(hour=0, minute=0),
+                tzinfo=timezone.utc,
+            ) + timedelta(seconds=rng.randrange(0, 6 * 60 * 60))
+    
     oms_event: dict[str, Any] = {
-        "event_id" : f"OMS_{event_id}",
+        "event_id" : f"{trade.get("business_trade_id")}_1",
         "trade_id" : trade.get("business_trade_id"),
-        "trade_version" : f"{trade_version:.1f}",
-        "event_type" : rng.choice(("NEW", "AMEND")),
-        "event_time" : trade.get("event_time"),
+        "trade_version" : "1",
+        "event_type" : "NEW",
+        "event_time" : event_time.isoformat(),
         "schema_version" : "1.0",
         "instrument_id" : trade.get("instrument_id"),
         "instrument_type" : trade.get("instrument_type"),
-        "side" : trade.get("side"),
-        "quantity" : trade.get("quantity"),
-        "price" : trade.get("price"),
-        "currency" : trade.get("currency"),
+        "side" : trade["side"],
+        "quantity" : trade["quantity"],
+        "price" : trade["price"],
+        "currency" : trade["currency"],
         "account_id" : trade.get("account_id"),
         "portfolio_id" : trade.get("portfolio_id"),
-        "broker_id" : trade.get("broker_id"),
+        "broker_id" : trade["broker_id"],
         "venue_id" : trade.get("venue_id"),
-        "trade_date" : trade.get("trade_date"),
-        "execution_timestamp" : trade.get("execution_timestamp"),
-        "settlement_date" : trade.get("settlement_date"),
-        "published_at" : trade.get("published_at"),
+        "trade_date" : trade["trade_date"],
+        "execution_timestamp" : trade["execution_timestamp"],
+        "settlement_date" : trade["settlement_date"],
+        "published_at" : published_at.isoformat(),
     }
     return [oms_event]
 
@@ -116,7 +125,36 @@ def generate_broker_events(
     rng: Random,
 ) -> list[BrokerEvent]:
     """Generate Broker A CSV-compatible source events for one synthetic trade."""
-    raise NotImplementedError("TR-016: implement generate_broker_events")
+    broker_id = rng.randrange(1, 99999)
+    published_at = datetime.combine(
+                time.time(),
+                time(hour=0, minute=0),
+                tzinfo=timezone.utc,
+            ) + timedelta(seconds=rng.randrange(0, 6 * 60 * 60))
+    
+    borker_event: dict[str, Any] = {
+        "confirmation_event_id" : f"{trade.get("business_trade_id")}_1",
+        "broker_trade_id" : f"BRK_TRD{broker_id:08d}",
+        "client_trade_id" : trade["business_trade_id"],
+        "confirmation_version": 1,
+        "confirmation_type":"CONFIRM",
+        "confirmation_time" : int(time.time()),
+        "schema_version":"1.0",
+        "instrument_code" : trade.get("instrument_id"),
+        "instrument_type" : trade.get("instrument_type"),
+        "side" : trade["side"],
+        "quantity" : trade["quantity"],
+        "price" : trade["price"],
+        "currency" : trade["currency"],
+        "client_account" : trade.get("account_id"),
+        "broker_id" : trade["broker_id"],
+        "venue" : trade.get("venue_id"),
+        "trade_date" : trade["trade_date"],
+        "execution_timestamp" : trade["execution_timestamp"],
+        "settlement_date" : trade["settlement_date"],
+        "published_at" : published_at.isoformat()
+    }
+    return [borker_event]
 
 
 def assign_delivery_batches(
