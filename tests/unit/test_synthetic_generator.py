@@ -89,13 +89,66 @@ def test_write_oms_jsonl_creates_expected_files(tmp_path):
             if clean_line:
                 file_records.append(json.loads(clean_line))
 
+    file2_records = []
+    with open(file_paths[1], "r", encoding="utf-8") as f:
+        for line in f:
+            clean_line = line.strip()
+            if clean_line:
+                file2_records.append(json.loads(clean_line))
+
     file_names = {path.name for path in file_paths}
 
     assert len(file_paths) == 2
     assert file_names == {"oms_part_00001.jsonl", "oms_part_00002.jsonl"}
     assert file_records[0]["event_id"] == oms_event1[0]["event_id"]
-    assert len(file_records[0]) == 2
-    assert len(file_records[1]) == 1
+    assert file_records[1]["event_id"] == oms_event2[0]["event_id"]
+    assert file2_records[0]["event_id"] == oms_event3[0]["event_id"]
+    assert len(file_records) == 2
+    assert len(file2_records) == 1
+
+def test_write_oms_jsonl_creates_exactly_1_file(tmp_path):
+    business_date = date(2026, 9, 7)
+    trade1 = generate_base_trade(1, business_date, Random(1986))
+    trade2 = generate_base_trade(2, business_date, Random(7433))
+    oms_event1 = generate_oms_events(trade=trade1,scenario=None,rng=Random(1986))
+    oms_event2 = generate_oms_events(trade=trade2,scenario=None,rng=Random(7433))
+    
+    oms_events = list()
+    oms_events.append(oms_event1[0])
+    oms_events.append(oms_event2[0])
+    
+    output_folder = tmp_path/"oms_jsonl_trades"
+    file_paths = write_oms_jsonl(output_path=output_folder,events=oms_events,records_per_file=2)
+
+    file_records = []
+    with open(file_paths[0], "r", encoding="utf-8") as f:
+        for line in f:
+            clean_line = line.strip()
+            if clean_line:
+                file_records.append(json.loads(clean_line))
+
+    file_names = {path.name for path in file_paths}
+
+    assert len(file_paths) == 1
+    assert file_names == {"oms_part_00001.jsonl"}
+    assert file_records[0]["event_id"] == oms_event1[0]["event_id"]
+    assert file_records[1]["event_id"] == oms_event2[0]["event_id"]
+    assert len(file_records) == 2
+
+def test_write_oms_jsonl_with_0_records_per_file(tmp_path):
+    business_date = date(2026, 9, 7)
+    trade1 = generate_base_trade(1, business_date, Random(1986))
+    trade2 = generate_base_trade(2, business_date, Random(7433))
+    oms_event1 = generate_oms_events(trade=trade1,scenario=None,rng=Random(1986))
+    oms_event2 = generate_oms_events(trade=trade2,scenario=None,rng=Random(7433))
+    
+    oms_events = list()
+    oms_events.append(oms_event1[0])
+    oms_events.append(oms_event2[0])
+    
+    output_folder = tmp_path/"oms_jsonl_trades"
+    with pytest.raises(ValueError):
+        write_oms_jsonl(output_path=output_folder,events=oms_events,records_per_file=0)
 
 
 @pytest.mark.skip(reason="Implement TR-016 dataset orchestration.")

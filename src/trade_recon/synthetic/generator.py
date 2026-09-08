@@ -166,6 +166,9 @@ def write_oms_jsonl(
 ) -> list[Path]:
     """Write immutable OMS JSONL files and return generated file paths."""
     paths = list()
+
+    if records_per_file <= 0:
+        raise ValueError
     
     if isinstance(output_path, str):
         output_dir = Path(output_path)
