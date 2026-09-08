@@ -10,7 +10,8 @@ from random import Random
 
 import pytest
 
-from src.trade_recon.synthetic.generator import generate_base_trade
+from src.trade_recon.synthetic.generator import generate_base_trade, generate_broker_events, generate_oms_events
+
 
 
 def test_generate_base_trade_is_deterministic_for_same_seed() -> None:
@@ -41,6 +42,29 @@ def test_generate_base_trade_is_source_neutral_and_valid() -> None:
     assert "event_id" not in trade
     assert "trade_version" not in trade
     assert "schema_version" not in trade
+
+def test_oms_trade_and_broker_trade_is_exact_match() -> None:
+    """OMS trade and Broker trade should contain business economics, and should exactly match."""
+    business_date = date(2026, 9, 7)
+
+    trade = generate_base_trade(7, business_date, Random(12345))
+    oms_event = generate_oms_events(trade=trade,scenario=None,rng=Random(12345))
+    broker_event = generate_broker_events(trade=trade,scenario=None,rng=Random(12345))
+
+    assert oms_event[0].get("trade_id") == broker_event[0].get("client_trade_id")
+    assert oms_event[0].get("instrument_id") == broker_event[0].get("instrument_code")
+    assert oms_event[0].get("side") == broker_event[0].get("side")
+    assert oms_event[0].get("quantity") == broker_event[0].get("quantity")
+    assert oms_event[0].get("price") == broker_event[0].get("price")
+    assert oms_event[0].get("currency") == broker_event[0].get("currency")
+    assert oms_event[0].get("account_id") == broker_event[0].get("client_account")
+    assert oms_event[0].get("broker_id") == broker_event[0].get("broker_id")
+    assert oms_event[0].get("trade_version") == 1
+    assert broker_event[0].get("confirmation_version") == 1
+    assert oms_event[0].get("published_at") >= oms_event[0].get("event_time")
+    assert broker_event[0].get("published_at") >= broker_event[0].get("confirmation_time")
+
+
 
 
 @pytest.mark.skip(reason="Implement TR-016 dataset orchestration.")
