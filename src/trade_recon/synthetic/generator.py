@@ -197,8 +197,9 @@ def write_oms_jsonl(
             file_name = f"oms_part_{(index+1):05d}.jsonl"
             full_path = output_dir/file_name
             with open(full_path, "w", encoding="utf-8") as f:
-                f.write(json.dumps(event))
-                f.write("\n")
+                for event in group_event:
+                    f.write(json.dumps(event))
+                    f.write("\n")
             paths.append(full_path)
     return paths
 
