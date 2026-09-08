@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
+import json
 from pathlib import Path
 from random import Random
 from typing import Any, Mapping, Sequence
@@ -20,7 +21,6 @@ BrokerEvent = Mapping[str, Any]
 DeliveryBatch = Mapping[str, Any]
 GenerationManifest = Mapping[str, Any]
 ExpectedResult = Mapping[str, Any]
-
 
 def generate_dataset(config: GeneratorConfig) -> GenerationManifest:
     """Generate a complete deterministic synthetic dataset and return its manifest."""
@@ -165,7 +165,39 @@ def write_oms_jsonl(
     records_per_file: int,
 ) -> list[Path]:
     """Write immutable OMS JSONL files and return generated file paths."""
-    raise NotImplementedError("TR-016: implement write_oms_jsonl")
+    paths = list()
+
+    if records_per_file <= 0:
+        raise ValueError
+    
+    if isinstance(output_path, str):
+        output_dir = Path(output_path)
+        output_dir.mkdir(parents=True, exist_ok=True)
+    else: 
+        output_dir = output_path
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+    #Split the OMS events into groups of records_per_file:
+    oms_event_group = list()
+    event_group = list()
+    for index, event in enumerate(events):
+        event_group.append(event)
+        if ((index+1) % records_per_file) == 0:
+            oms_event_group.append(event_group)
+            event_group = list()
+    oms_event_group.append(event_group)
+
+    #Create deterministic filename for each group
+    for index, group_event in enumerate(oms_event_group):
+        if len(group_event) > 0:
+            file_name = f"oms_part_{(index+1):05d}.jsonl"
+            full_path = output_dir/file_name
+            with open(full_path, "w", encoding="utf-8") as f:
+                for event in group_event:
+                    f.write(json.dumps(event))
+                    f.write("\n")
+            paths.append(full_path)
+    return paths
 
 
 def write_broker_csv(
