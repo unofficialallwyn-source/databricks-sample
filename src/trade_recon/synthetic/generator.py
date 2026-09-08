@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
-import json, logging
+import json
 from pathlib import Path
 from random import Random
 from typing import Any, Mapping, Sequence
@@ -21,13 +21,6 @@ BrokerEvent = Mapping[str, Any]
 DeliveryBatch = Mapping[str, Any]
 GenerationManifest = Mapping[str, Any]
 ExpectedResult = Mapping[str, Any]
-
-logging.basicConfig(
-    filename='app.log',
-    level=logging.DEBUG,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
 
 def generate_dataset(config: GeneratorConfig) -> GenerationManifest:
     """Generate a complete deterministic synthetic dataset and return its manifest."""
