@@ -6,13 +6,13 @@ Implement the generator logic hands-on and replace each NotImplementedError.
 
 from __future__ import annotations
 
+import csv
 from datetime import date, datetime, time, timedelta, timezone
 from decimal import Decimal
 import json
 from pathlib import Path
 from random import Random
 from typing import Any, Mapping, Sequence
-import pandas as pd
 
 GeneratorConfig = Mapping[str, Any]
 ScenarioConfig = Mapping[str, Any]
@@ -229,13 +229,20 @@ def write_broker_csv(
             event_group = list()
     broker_event_group.append(event_group)
 
+    broker_a_headers = ["confirmation_event_id","broker_trade_id","client_trade_id","confirmation_version",
+               "confirmation_type","confirmation_time","schema_version","instrument_code",
+               "instrument_type","side","quantity","price","currency","client_account","broker_id",
+               "venue","trade_date","execution_timestamp","settlement_date","published_at"]
+
     #Create deterministic filename for each group
     for index, group_event in enumerate(broker_event_group):
         if len(group_event) > 0:
             file_name = f"broker_a_part_{(index+1):05d}.csv"
             full_path = output_dir/file_name
-            df = pd.DataFrame(group_event)
-            df.to_csv(full_path, index=False)
+            with open(full_path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=broker_a_headers)
+                writer.writeheader()
+                writer.writerows(group_event)
             paths.append(full_path)
     return paths
 

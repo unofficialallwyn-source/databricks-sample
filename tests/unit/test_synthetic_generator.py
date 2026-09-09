@@ -4,13 +4,13 @@ Only the base-trade milestone is enabled for now.
 Enable the remaining scenario tests incrementally as each capability is implemented.
 """
 
+import csv
 from datetime import date
 from decimal import Decimal
 from io import StringIO
 import json
 from random import Random
 
-import pandas as pd
 import pytest
 
 from src.trade_recon.synthetic.generator import generate_base_trade, generate_broker_events, generate_oms_events, write_broker_csv, write_oms_jsonl
@@ -171,12 +171,14 @@ def test_write_broker_csv_creates_expected_files(tmp_path):
     columns = broker_event1[0].keys() 
 
     file_records = []
-    df = pd.read_csv(file_paths[0], skiprows=1, names=columns)
-    file_records.extend(df.to_dict(orient="records"))
-                
+    with open(file_paths[0], "r", newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        file_records.extend(list(reader))
+
     file2_records = []
-    df2 = pd.read_csv(file_paths[1], skiprows=1, names=columns)
-    file2_records.extend(df2.to_dict(orient="records"))
+    with open(file_paths[1], "r", newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        file2_records.extend(list(reader))
                 
     file_names = {path.name for path in file_paths}
 
@@ -205,9 +207,10 @@ def test_write_broker_csv_creates_exactly_1_file(tmp_path):
     columns = broker_event1[0].keys()
 
     file_records = []
-    df = pd.read_csv(file_paths[0], skiprows=1, names=columns)
-    file_records.extend(df.to_dict(orient="records"))
-                
+    with open(file_paths[0], "r", newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        file_records.extend(list(reader))
+
     file_names = {path.name for path in file_paths}
 
     assert len(file_paths) == 1
