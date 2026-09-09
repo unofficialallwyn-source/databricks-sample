@@ -7,7 +7,6 @@ Enable the remaining scenario tests incrementally as each capability is implemen
 import csv
 from datetime import date
 from decimal import Decimal
-from io import StringIO
 import json
 from random import Random
 
@@ -168,11 +167,10 @@ def test_write_broker_csv_creates_expected_files(tmp_path):
     output_folder = tmp_path/"broker_a_csv_trades"
     file_paths = write_broker_csv(output_path=output_folder,events=broker_events,records_per_file=2)
 
-    columns = broker_event1[0].keys() 
-
     file_records = []
     with open(file_paths[0], "r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
+        headers = reader.fieldnames
         file_records.extend(list(reader))
 
     file2_records = []
@@ -184,9 +182,28 @@ def test_write_broker_csv_creates_expected_files(tmp_path):
 
     assert len(file_paths) == 2
     assert file_names == {"broker_a_part_00001.csv", "broker_a_part_00002.csv"}
+    assert headers == ["confirmation_event_id","broker_trade_id","client_trade_id","confirmation_version",
+                "confirmation_type","confirmation_time","schema_version","instrument_code",
+                "instrument_type","side","quantity","price","currency","client_account","broker_id",
+                "venue","trade_date","execution_timestamp","settlement_date","published_at"]
     assert file_records[0]['confirmation_event_id'] == broker_event1[0]["confirmation_event_id"]
     assert file_records[1]['confirmation_event_id'] == broker_event2[0]["confirmation_event_id"]
     assert file2_records[0]['confirmation_event_id'] == broker_event3[0]["confirmation_event_id"]
+    assert file_records[0]['client_trade_id'] == broker_event1[0]["client_trade_id"]
+    assert file_records[0]['quantity'] == broker_event1[0]["quantity"]
+    assert file_records[0]['price'] == broker_event1[0]["price"]
+    assert file_records[0]['side'] == broker_event1[0]["side"]
+    assert file_records[0]['currency'] == broker_event1[0]["currency"]
+    assert file_records[1]['client_trade_id'] == broker_event2[0]["client_trade_id"]
+    assert file_records[1]['quantity'] == broker_event2[0]["quantity"]
+    assert file_records[1]['price'] == broker_event2[0]["price"]
+    assert file_records[1]['side'] == broker_event2[0]["side"]
+    assert file_records[1]['currency'] == broker_event2[0]["currency"]
+    assert file2_records[0]['client_trade_id'] == broker_event3[0]["client_trade_id"]
+    assert file2_records[0]['quantity'] == broker_event3[0]["quantity"]
+    assert file2_records[0]['price'] == broker_event3[0]["price"]
+    assert file2_records[0]['side'] == broker_event3[0]["side"]
+    assert file2_records[0]['currency'] == broker_event3[0]["currency"]
     assert len(file_records) == 2
     assert len(file2_records) == 1
 
@@ -204,19 +221,32 @@ def test_write_broker_csv_creates_exactly_1_file(tmp_path):
     output_folder = tmp_path/"broker_a_csv_trades"
     file_paths = write_broker_csv(output_path=output_folder,events=broker_events,records_per_file=2)
 
-    columns = broker_event1[0].keys()
-
     file_records = []
     with open(file_paths[0], "r", newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
+        headers = reader.fieldnames
         file_records.extend(list(reader))
 
     file_names = {path.name for path in file_paths}
 
     assert len(file_paths) == 1
+    assert headers == ["confirmation_event_id","broker_trade_id","client_trade_id","confirmation_version",
+                "confirmation_type","confirmation_time","schema_version","instrument_code",
+                "instrument_type","side","quantity","price","currency","client_account","broker_id",
+                "venue","trade_date","execution_timestamp","settlement_date","published_at"]
     assert file_names == {"broker_a_part_00001.csv"}
     assert file_records[0]['confirmation_event_id'] == broker_event1[0]["confirmation_event_id"]
     assert file_records[1]['confirmation_event_id'] == broker_event2[0]["confirmation_event_id"]
+    assert file_records[0]['client_trade_id'] == broker_event1[0]["client_trade_id"]
+    assert file_records[0]['quantity'] == broker_event1[0]["quantity"]
+    assert file_records[0]['price'] == broker_event1[0]["price"]
+    assert file_records[0]['side'] == broker_event1[0]["side"]
+    assert file_records[0]['currency'] == broker_event1[0]["currency"]
+    assert file_records[1]['client_trade_id'] == broker_event2[0]["client_trade_id"]
+    assert file_records[1]['quantity'] == broker_event2[0]["quantity"]
+    assert file_records[1]['price'] == broker_event2[0]["price"]
+    assert file_records[1]['side'] == broker_event2[0]["side"]
+    assert file_records[1]['currency'] == broker_event2[0]["currency"]
     assert len(file_records) == 2
 
 def test_write_broker_csv_with_0_records_per_file(tmp_path):
