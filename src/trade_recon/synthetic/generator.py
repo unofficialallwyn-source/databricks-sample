@@ -12,6 +12,7 @@ import json
 from pathlib import Path
 from random import Random
 from typing import Any, Mapping, Sequence
+import pandas as pd
 
 GeneratorConfig = Mapping[str, Any]
 ScenarioConfig = Mapping[str, Any]
@@ -206,7 +207,37 @@ def write_broker_csv(
     records_per_file: int,
 ) -> list[Path]:
     """Write immutable Broker A CSV files and return generated file paths."""
-    raise NotImplementedError("TR-016: implement write_broker_csv")
+    paths = list()
+    
+    if records_per_file <= 0:
+        raise ValueError
+    
+    if isinstance(output_path, str):
+        output_dir = Path(output_path)
+        output_dir.mkdir(parents=True, exist_ok=True)
+    else: 
+        output_dir = output_path
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+    #Split the Broker events into groups of records_per_file:
+    broker_event_group = list()
+    event_group = list()
+    for index, event in enumerate(events):
+        event_group.append(event)
+        if ((index+1) % records_per_file) == 0:
+            broker_event_group.append(event_group)
+            event_group = list()
+    broker_event_group.append(event_group)
+
+    #Create deterministic filename for each group
+    for index, group_event in enumerate(broker_event_group):
+        if len(group_event) > 0:
+            file_name = f"broker_a_part_{(index+1):05d}.csv"
+            full_path = output_dir/file_name
+            df = pd.DataFrame(group_event)
+            df.to_csv(full_path, index=False)
+            paths.append(full_path)
+    return paths
 
 
 def write_manifest(

@@ -6,12 +6,14 @@ Enable the remaining scenario tests incrementally as each capability is implemen
 
 from datetime import date
 from decimal import Decimal
+from io import StringIO
 import json
 from random import Random
 
+import pandas as pd
 import pytest
 
-from src.trade_recon.synthetic.generator import generate_base_trade, generate_broker_events, generate_oms_events, write_oms_jsonl
+from src.trade_recon.synthetic.generator import generate_base_trade, generate_broker_events, generate_oms_events, write_broker_csv, write_oms_jsonl
 
 
 
@@ -149,6 +151,85 @@ def test_write_oms_jsonl_with_0_records_per_file(tmp_path):
     output_folder = tmp_path/"oms_jsonl_trades"
     with pytest.raises(ValueError):
         write_oms_jsonl(output_path=output_folder,events=oms_events,records_per_file=0)
+
+def test_write_broker_csv_creates_expected_files(tmp_path):
+    business_date = date(2026, 9, 7)
+    trade1 = generate_base_trade(1, business_date, Random(1986))
+    trade2 = generate_base_trade(2, business_date, Random(7433))
+    trade3 = generate_base_trade(3, business_date, Random(5860))
+    broker_event1 = generate_broker_events(trade=trade1,scenario=None,rng=Random(1986))
+    broker_event2 = generate_broker_events(trade=trade2,scenario=None,rng=Random(7433))
+    broker_event3 = generate_broker_events(trade=trade3,scenario=None,rng=Random(5860))
+    broker_events = list()
+    broker_events.append(broker_event1[0])
+    broker_events.append(broker_event2[0])
+    broker_events.append(broker_event3[0])
+    
+    output_folder = tmp_path/"broker_a_csv_trades"
+    file_paths = write_broker_csv(output_path=output_folder,events=broker_events,records_per_file=2)
+
+    columns = broker_event1[0].keys() 
+
+    file_records = []
+    df = pd.read_csv(file_paths[0], skiprows=1, names=columns)
+    file_records.extend(df.to_dict(orient="records"))
+                
+    file2_records = []
+    df2 = pd.read_csv(file_paths[1], skiprows=1, names=columns)
+    file2_records.extend(df2.to_dict(orient="records"))
+                
+    file_names = {path.name for path in file_paths}
+
+    assert len(file_paths) == 2
+    assert file_names == {"broker_a_part_00001.csv", "broker_a_part_00002.csv"}
+    assert file_records[0]['confirmation_event_id'] == broker_event1[0]["confirmation_event_id"]
+    assert file_records[1]['confirmation_event_id'] == broker_event2[0]["confirmation_event_id"]
+    assert file2_records[0]['confirmation_event_id'] == broker_event3[0]["confirmation_event_id"]
+    assert len(file_records) == 2
+    assert len(file2_records) == 1
+
+def test_write_broker_csv_creates_exactly_1_file(tmp_path):
+    business_date = date(2026, 9, 7)
+    trade1 = generate_base_trade(1, business_date, Random(1986))
+    trade2 = generate_base_trade(2, business_date, Random(7433))
+    broker_event1 = generate_broker_events(trade=trade1,scenario=None,rng=Random(1986))
+    broker_event2 = generate_broker_events(trade=trade2,scenario=None,rng=Random(7433))
+    
+    broker_events = list()
+    broker_events.append(broker_event1[0])
+    broker_events.append(broker_event2[0])
+    
+    output_folder = tmp_path/"broker_a_csv_trades"
+    file_paths = write_broker_csv(output_path=output_folder,events=broker_events,records_per_file=2)
+
+    columns = broker_event1[0].keys()
+
+    file_records = []
+    df = pd.read_csv(file_paths[0], skiprows=1, names=columns)
+    file_records.extend(df.to_dict(orient="records"))
+                
+    file_names = {path.name for path in file_paths}
+
+    assert len(file_paths) == 1
+    assert file_names == {"broker_a_part_00001.csv"}
+    assert file_records[0]['confirmation_event_id'] == broker_event1[0]["confirmation_event_id"]
+    assert file_records[1]['confirmation_event_id'] == broker_event2[0]["confirmation_event_id"]
+    assert len(file_records) == 2
+
+def test_write_broker_csv_with_0_records_per_file(tmp_path):
+    business_date = date(2026, 9, 7)
+    trade1 = generate_base_trade(1, business_date, Random(1986))
+    trade2 = generate_base_trade(2, business_date, Random(7433))
+    broker_event1 = generate_broker_events(trade=trade1,scenario=None,rng=Random(1986))
+    broker_event2 = generate_broker_events(trade=trade2,scenario=None,rng=Random(7433))
+    
+    broker_events = list()
+    broker_events.append(broker_event1[0])
+    broker_events.append(broker_event2[0])
+    
+    output_folder = tmp_path/"broker_a_csv_trades"
+    with pytest.raises(ValueError):
+        write_broker_csv(output_path=output_folder,events=broker_events,records_per_file=0)
 
 
 @pytest.mark.skip(reason="Implement TR-016 dataset orchestration.")
