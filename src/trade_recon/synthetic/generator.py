@@ -91,9 +91,10 @@ def generate_scenario(
         raise ValueError(f"Unsupported scenario_id: {scenario_id}")
 
     oms_events = generate_oms_events(trade, scenario, rng)
-    broker_events = generate_broker_events(trade, scenario, rng)
 
     match scenario_id:
+        case "S-001":
+            broker_events = generate_broker_events(trade, scenario, rng)
         case "S-002":
             broker_events = generate_broker_events(apply_price_mismatch(trade, scenario)
                                                    , scenario, rng)
@@ -330,10 +331,13 @@ def apply_price_mismatch(
     price_delta = Decimal(scenario["price_delta"])
     trade_copy = copy.deepcopy(trade)
 
-    if price_delta == price_tolerance:
-        raise ValueError("Price delta equal to price tolerance")
+    if price_tolerance < 0.0 or price_delta <= 0.0:
+        raise ValueError("Price tolerance or delta must be positive")
+
+    if price_delta <= price_tolerance:
+        raise ValueError("Price delta must exceed price tolerance")
     
-    if price_tolerance > 0.0 and price_delta > 0.0 and price_delta > price_tolerance:
+    if price_tolerance >= 0.0 and price_delta > 0.0 and price_delta > price_tolerance:
         mismatched_price = (Decimal(trade["price"]) 
                             + Decimal(price_delta)).quantize(Decimal("0.0000000001")) 
         trade_copy["price"] = str(mismatched_price)
