@@ -637,12 +637,24 @@ def test_price_within_tolerance_stays_within_boundary() -> None:
     assert len(oms_events) == 1
     assert len(broker_events) == 1
     assert expected_result["scenario_id"] == "S-003"
+    assert expected_result["scenario_name"] == "PRICE_WITHIN_TOLERANCE"
     assert expected_result["expected_reconciliation_status"] == "MATCHED"
     assert expected_result["expected_break_types"] == []
     assert oms_events[0]["trade_id"] == broker_events[0]["client_trade_id"]
     assert oms_events[0]["instrument_id"] == broker_events[0]["instrument_code"]
     assert oms_events[0]["side"] == broker_events[0]["side"]
     assert oms_events[0]["quantity"] == broker_events[0]["quantity"]
+    assert oms_events[0]["currency"] == broker_events[0]["currency"]
+    assert oms_events[0]["account_id"] == broker_events[0]["client_account"]
+    assert oms_events[0]["broker_id"] == broker_events[0]["broker_id"]
+    assert oms_events[0]["venue_id"] == broker_events[0]["venue"]
+    assert oms_events[0]["trade_date"] == broker_events[0]["trade_date"]
+    assert oms_events[0]["execution_timestamp"] == broker_events[0]["execution_timestamp"]
+    assert oms_events[0]["settlement_date"] == broker_events[0]["settlement_date"]
+    assert oms_events[0]["instrument_type"] == broker_events[0]["instrument_type"]
+    assert expected_result["business_trade_id"] == base_trade["business_trade_id"]
+    assert expected_result["expected_oms_version"] == 1
+    assert expected_result["expected_broker_version"] == 1
     assert abs(Decimal(broker_events[0]["price"]) - Decimal(oms_events[0]["price"])) <= Decimal("0.01")
     assert difference != Decimal("0")
     assert difference == Decimal("0.01")
@@ -705,7 +717,7 @@ def test_apply_price_within_tolerance_rejects_with_zero_delta() -> None:
 
     assert "Price tolerance or delta must be positive" in str(exc_info.value)
 
-def test_price_mismatch_rejects_negative_tolerance() -> None:
+def test_price_within_tolerance_rejects_negative_tolerance() -> None:
     """PRICE_WITHIN_TOLERANCE should reject a negative tolerance."""
     base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
     scenario = {
