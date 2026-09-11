@@ -13,7 +13,7 @@ from random import Random
 
 import pytest
 
-from src.trade_recon.synthetic.generator import generate_base_trade, generate_broker_events, generate_oms_events, write_broker_csv, write_manifest, write_oms_jsonl
+from src.trade_recon.synthetic.generator import generate_base_trade, generate_broker_events, generate_oms_events, generate_scenario, write_broker_csv, write_manifest, write_oms_jsonl
 
 
 
@@ -387,11 +387,71 @@ def test_different_seed_changes_generated_dataset() -> None:
     pytest.fail("Implement seed variation test")
 
 
-@pytest.mark.skip(reason="Implement S-001 EXACT_MATCH.")
 def test_exact_match_scenario_produces_matching_economics() -> None:
     """EXACT_MATCH should generate OMS and Broker records with matching economics."""
-    pytest.fail("Implement EXACT_MATCH scenario test")
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+    scenario = {
+        "scenario_id": "S-001",
+        "scenario_name": "EXACT_MATCH",
+    }
 
+    oms_events, broker_events, expected_result = generate_scenario(
+        trade=base_trade,
+        scenario=scenario,
+        rng=Random(12345),
+    )
+
+    assert len(oms_events) == 1
+    assert len(broker_events) == 1
+    assert oms_events[0]["trade_id"] == broker_events[0]["client_trade_id"]
+    assert oms_events[0]["instrument_id"] == broker_events[0]["instrument_code"]
+    assert oms_events[0]["side"] == broker_events[0]["side"]
+    assert oms_events[0]["quantity"] == broker_events[0]["quantity"]
+    assert oms_events[0]["price"] == broker_events[0]["price"]
+    assert oms_events[0]["currency"] == broker_events[0]["currency"]
+    assert oms_events[0]["account_id"] == broker_events[0]["client_account"]
+    assert oms_events[0]["broker_id"] == broker_events[0]["broker_id"]
+    assert expected_result["scenario_id"] == "S-001"
+    assert expected_result["business_trade_id"] == base_trade["business_trade_id"]
+    assert expected_result["expected_reconciliation_status"] == "MATCHED"
+    assert expected_result["expected_break_types"] == []
+    assert expected_result["expected_oms_version"] == 1
+    assert expected_result["expected_broker_version"] == 1
+    assert oms_events[0]["trade_version"] == 1
+    assert broker_events[0]["confirmation_version"] == 1
+
+def test_generate_scenario_rejects_missing_scenario_id():
+    """generate_scenario should raise ValueError if scenario_id is missing."""
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+    scenario = {
+        "scenario_name": "EXACT_MATCH",
+    }
+
+    with pytest.raises(ValueError) as exc_info:
+        generate_scenario(
+            trade=base_trade,
+            scenario=scenario,
+            rng=Random(12345),
+        )
+
+    assert "scenario_id is required in scenario config" in str(exc_info.value)
+
+def test_generate_scenario_rejects_unsupported_scenario():
+    """generate_scenario should raise ValueError if scenario_id is unsupported."""
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+    scenario = {
+        "scenario_id": "S-002",
+        "scenario_name": "PRICE_MISMATCH",
+    }
+
+    with pytest.raises(ValueError) as exc_info:
+        generate_scenario(
+            trade=base_trade,
+            scenario=scenario,
+            rng=Random(12345),
+        )
+
+    assert "Unsupported scenario_id: S-002" in str(exc_info.value)
 
 @pytest.mark.skip(reason="Implement S-002 PRICE_MISMATCH.")
 def test_price_mismatch_exceeds_configured_tolerance() -> None:
