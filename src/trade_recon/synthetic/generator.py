@@ -252,9 +252,23 @@ def write_manifest(
     output_path: str | Path,
 ) -> Path:
     """Persist generation metadata and test-oracle information separately from source payloads."""
-    raise NotImplementedError("TR-016: implement write_manifest")
 
+    if isinstance(output_path, str):
+            output_dir = Path(output_path)
+            output_dir.mkdir(parents=True, exist_ok=True)
+    else: 
+        output_dir = output_path
+        output_dir.mkdir(parents=True, exist_ok=True)
 
+    file_name = "generation_manifest.json"
+    fullpath = output_dir/file_name
+
+    with open(fullpath, "w", encoding="utf-8") as f:
+        json.dump(manifest, f, indent=4, sort_keys=True )
+        f.write("\n")
+    
+    return fullpath
+    
 def validate_generated_dataset(
     manifest: GenerationManifest,
 ) -> None:

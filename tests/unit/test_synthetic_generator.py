@@ -8,11 +8,12 @@ import csv
 from datetime import date
 from decimal import Decimal
 import json
+from pathlib import Path
 from random import Random
 
 import pytest
 
-from src.trade_recon.synthetic.generator import generate_base_trade, generate_broker_events, generate_oms_events, write_broker_csv, write_oms_jsonl
+from src.trade_recon.synthetic.generator import generate_base_trade, generate_broker_events, generate_oms_events, write_broker_csv, write_manifest, write_oms_jsonl
 
 
 
@@ -264,6 +265,115 @@ def test_write_broker_csv_with_0_records_per_file(tmp_path):
     with pytest.raises(ValueError):
         write_broker_csv(output_path=output_folder,events=broker_events,records_per_file=0)
 
+def test_write_manifest_creates_expected_json(tmp_path):
+    manifest = {
+        "business_date": "2026-09-09",
+        "expected_results": [],
+        "files": {
+            "broker": [
+                "broker_a_part_00001.csv",
+                "broker_a_part_00002.csv"
+            ],
+            "oms": [
+                "oms_part_00001.jsonl",
+                "oms_part_00002.jsonl"
+            ]
+        },
+        "generator_version": "1.0",
+        "seed": 12345,
+        "source_counts": {
+            "broker_events": 3,
+            "broker_files": 2,
+            "oms_events": 3,
+            "oms_files": 2
+        }
+    }
+
+    manifest_path = write_manifest(output_path=tmp_path, manifest=manifest)
+
+    with open(manifest_path, "r", encoding="utf-8") as f:
+        loaded_manifest = json.load(f)
+
+    assert manifest_path.name == "generation_manifest.json"
+    assert loaded_manifest == manifest
+    assert loaded_manifest["business_date"] == manifest["business_date"]
+    assert loaded_manifest["generator_version"] == manifest["generator_version"]
+    assert loaded_manifest["seed"] == manifest["seed"]
+    assert loaded_manifest["source_counts"]["broker_events"] == manifest["source_counts"]["broker_events"]
+    assert loaded_manifest["source_counts"]["broker_files"] == manifest["source_counts"]["broker_files"]
+    assert loaded_manifest["source_counts"]["oms_events"] == manifest["source_counts"]["oms_events"]
+    assert loaded_manifest["source_counts"]["oms_files"] == manifest["source_counts"]["oms_files"]
+    assert loaded_manifest["files"]["broker"] == manifest["files"]["broker"]
+    assert loaded_manifest["files"]["oms"] == manifest["files"]["oms"]
+
+def test_write_manifest_is_deterministic(tmp_path):
+    """Writing the same manifest twice should produce identical files."""
+    manifest = {
+        "business_date": "2026-09-09",
+        "expected_results": [],
+        "files": {
+            "broker": [
+                "broker_a_part_00001.csv",
+                "broker_a_part_00002.csv"
+            ],
+            "oms": [
+                "oms_part_00001.jsonl",
+                "oms_part_00002.jsonl"
+            ]
+        },
+        "generator_version": "1.0",
+        "seed": 12345,
+        "source_counts": {
+            "broker_events": 3,
+            "broker_files": 2,
+            "oms_events": 3,
+            "oms_files": 2
+        }
+    }
+
+    manifest_path1 = write_manifest(output_path=tmp_path, manifest=manifest)
+    with open(manifest_path1, "r", encoding="utf-8") as f1:
+            content1 = f1.read()
+            
+    manifest_path2 = write_manifest(output_path=tmp_path, manifest=manifest)
+    with open(manifest_path2, "r", encoding="utf-8") as f2:
+        content2 = f2.read()
+
+    assert content1 == content2
+
+def test_manifest_contains_relative_filenames_only(tmp_path):
+    """Manifest file paths should be relative, not absolute."""
+    manifest = {
+        "business_date": "2026-09-09",
+        "expected_results": [],
+        "files": {
+            "broker": [
+                "broker_a_part_00001.csv",
+                "broker_a_part_00002.csv"
+            ],
+            "oms": [
+                "oms_part_00001.jsonl",
+                "oms_part_00002.jsonl"
+            ]
+        },
+        "generator_version": "1.0",
+        "seed": 12345,
+        "source_counts": {
+            "broker_events": 3,
+            "broker_files": 2,
+            "oms_events": 3,
+            "oms_files": 2
+        }
+    }
+
+    manifest_path = write_manifest(output_path=tmp_path, manifest=manifest)
+
+    with open(manifest_path, "r", encoding="utf-8") as f:
+        loaded_manifest = json.load(f)
+
+    for file_list in loaded_manifest["files"].values():
+        for file_name in file_list:
+            assert not Path(file_name).is_absolute(), f"Manifest file path {file_name} should be relative, not absolute."
 
 @pytest.mark.skip(reason="Implement TR-016 dataset orchestration.")
 def test_same_seed_produces_same_logical_dataset() -> None:
