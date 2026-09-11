@@ -652,6 +652,8 @@ def test_price_within_tolerance_stays_within_boundary() -> None:
     assert oms_events[0]["execution_timestamp"] == broker_events[0]["execution_timestamp"]
     assert oms_events[0]["settlement_date"] == broker_events[0]["settlement_date"]
     assert oms_events[0]["instrument_type"] == broker_events[0]["instrument_type"]
+    assert oms_events[0]["trade_version"] == 1
+    assert broker_events[0]["confirmation_version"] == 1
     assert expected_result["business_trade_id"] == base_trade["business_trade_id"]
     assert expected_result["expected_oms_version"] == 1
     assert expected_result["expected_broker_version"] == 1
