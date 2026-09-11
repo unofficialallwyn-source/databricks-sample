@@ -13,7 +13,7 @@ from random import Random
 
 import pytest
 
-from src.trade_recon.synthetic.generator import apply_price_mismatch, generate_base_trade, generate_broker_events, generate_oms_events, generate_scenario, write_broker_csv, write_manifest, write_oms_jsonl
+from src.trade_recon.synthetic.generator import apply_price_mismatch, apply_price_within_tolerance, generate_base_trade, generate_broker_events, generate_oms_events, generate_scenario, write_broker_csv, write_manifest, write_oms_jsonl
 
 
 
@@ -613,11 +613,129 @@ def test_price_mismatch_rejects_delta_within_tolerance():
 
     assert "Price delta must exceed price tolerance" in str(exc_info.value)
 
-@pytest.mark.skip(reason="Implement S-003 PRICE_WITHIN_TOLERANCE.")
 def test_price_within_tolerance_stays_within_boundary() -> None:
     """PRICE_WITHIN_TOLERANCE should remain inside the configured tolerance."""
-    pytest.fail("Implement PRICE_WITHIN_TOLERANCE scenario test")
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+    scenario = {
+        "scenario_id": "S-003",
+        "scenario_name": "PRICE_WITHIN_TOLERANCE",
+        "price_tolerance": "0.01",
+        "price_delta": "0.01",
+    }
 
+    oms_events, broker_events, expected_result = generate_scenario(
+        trade=base_trade,
+        scenario=scenario,
+        rng=Random(12345),
+    )
+
+    oms_price = Decimal(oms_events[0]["price"])
+    broker_price = Decimal(broker_events[0]["price"])
+
+    difference = abs(broker_price - oms_price)
+
+    assert len(oms_events) == 1
+    assert len(broker_events) == 1
+    assert expected_result["scenario_id"] == "S-003"
+    assert expected_result["scenario_name"] == "PRICE_WITHIN_TOLERANCE"
+    assert expected_result["expected_reconciliation_status"] == "MATCHED"
+    assert expected_result["expected_break_types"] == []
+    assert oms_events[0]["trade_id"] == broker_events[0]["client_trade_id"]
+    assert oms_events[0]["instrument_id"] == broker_events[0]["instrument_code"]
+    assert oms_events[0]["side"] == broker_events[0]["side"]
+    assert oms_events[0]["quantity"] == broker_events[0]["quantity"]
+    assert oms_events[0]["currency"] == broker_events[0]["currency"]
+    assert oms_events[0]["account_id"] == broker_events[0]["client_account"]
+    assert oms_events[0]["broker_id"] == broker_events[0]["broker_id"]
+    assert oms_events[0]["venue_id"] == broker_events[0]["venue"]
+    assert oms_events[0]["trade_date"] == broker_events[0]["trade_date"]
+    assert oms_events[0]["execution_timestamp"] == broker_events[0]["execution_timestamp"]
+    assert oms_events[0]["settlement_date"] == broker_events[0]["settlement_date"]
+    assert oms_events[0]["instrument_type"] == broker_events[0]["instrument_type"]
+    assert oms_events[0]["trade_version"] == 1
+    assert broker_events[0]["confirmation_version"] == 1
+    assert expected_result["business_trade_id"] == base_trade["business_trade_id"]
+    assert expected_result["expected_oms_version"] == 1
+    assert expected_result["expected_broker_version"] == 1
+    assert abs(Decimal(broker_events[0]["price"]) - Decimal(oms_events[0]["price"])) <= Decimal("0.01")
+    assert difference != Decimal("0")
+    assert difference == Decimal("0.01")
+    assert difference <= Decimal("0.01")
+
+def test_apply_price_within_tolerance_does_not_mutate_base_trade():
+    """PRICE_WITHIN_TOLERANCE should not mutate the base trade."""
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+    scenario = {
+        "scenario_id": "S-003",
+        "scenario_name": "PRICE_WITHIN_TOLERANCE",
+        "price_tolerance": "0.01",
+        "price_delta": "0.005",
+    }
+
+    base_trade_price = Decimal(base_trade["price"])
+
+    mismatch_trade_price = apply_price_within_tolerance(
+        trade=base_trade,
+        scenario=scenario,
+    )
+
+    assert base_trade["business_trade_id"] == mismatch_trade_price["business_trade_id"]
+    assert Decimal(base_trade["price"]) == base_trade_price
+    assert Decimal(base_trade["price"]) != Decimal(mismatch_trade_price["price"])
+
+def test_apply_price_within_tolerance_rejects_delta_above_tolerance() -> None:
+    """PRICE_WITHIN_TOLERANCE should reject a delta that exceeds the configured tolerance."""
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+    scenario = {
+        "scenario_id": "S-003",
+        "scenario_name": "PRICE_WITHIN_TOLERANCE",
+        "price_tolerance": "0.01",
+        "price_delta": "0.02",
+    }
+
+    with pytest.raises(ValueError) as exc_info:
+        apply_price_within_tolerance(
+            trade=base_trade,
+            scenario=scenario,
+        )
+
+    assert "Price delta must be within price tolerance" in str(exc_info.value)
+
+def test_apply_price_within_tolerance_rejects_with_zero_delta() -> None:
+    """PRICE_WITHIN_TOLERANCE should reject a zero delta."""
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+    scenario = {
+        "scenario_id": "S-003",
+        "scenario_name": "PRICE_WITHIN_TOLERANCE",
+        "price_tolerance": "0.01",
+        "price_delta": "0.00",
+    }
+
+    with pytest.raises(ValueError) as exc_info:
+        apply_price_within_tolerance(
+            trade=base_trade,
+            scenario=scenario,
+        )
+
+    assert "Price tolerance or delta must be positive" in str(exc_info.value)
+
+def test_price_within_tolerance_rejects_negative_tolerance() -> None:
+    """PRICE_WITHIN_TOLERANCE should reject a negative tolerance."""
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+    scenario = {
+        "scenario_id": "S-003",
+        "scenario_name": "PRICE_WITHIN_TOLERANCE",
+        "price_tolerance": "-0.01",
+        "price_delta": "0.005",
+    }
+
+    with pytest.raises(ValueError) as exc_info:
+        apply_price_within_tolerance(
+            trade=base_trade,
+            scenario=scenario,
+        )
+
+    assert "Price tolerance or delta must be positive" in str(exc_info.value)
 
 @pytest.mark.skip(reason="Implement S-007 LATE_CONFIRMATION.")
 def test_late_confirmation_uses_later_delivery_phase() -> None:
