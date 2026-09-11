@@ -332,15 +332,16 @@ def test_write_manifest_is_deterministic(tmp_path):
     }
 
     manifest_path1 = write_manifest(output_path=tmp_path, manifest=manifest)
+    with open(manifest_path1, "r", encoding="utf-8") as f1:
+            content1 = f1.read()
+            
     manifest_path2 = write_manifest(output_path=tmp_path, manifest=manifest)
-
-    with open(manifest_path1, "r", encoding="utf-8") as f1, open(manifest_path2, "r", encoding="utf-8") as f2:
-        content1 = f1.read()
+    with open(manifest_path2, "r", encoding="utf-8") as f2:
         content2 = f2.read()
 
     assert content1 == content2
 
-def manifest_contains_relative_filenames_only(tmp_path):
+def test_manifest_contains_relative_filenames_only(tmp_path):
     """Manifest file paths should be relative, not absolute."""
     manifest = {
         "business_date": "2026-09-09",
