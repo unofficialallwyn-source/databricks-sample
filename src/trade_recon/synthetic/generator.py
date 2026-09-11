@@ -85,10 +85,10 @@ def generate_scenario(
     broker_events = generate_broker_events(trade, scenario, rng)
     expected_result: dict[str, Any] = {
         "scenario_id": scenario_id,
-        "expected_outcome": "EXACT_MATCH",
+        "scenario_name": "EXACT_MATCH",
         "business_trade_id": trade["business_trade_id"],
         "expected_reconciliation_status": "MATCHED",
-        "expected_breaks": [],
+        "expected_break_types": [],
         "expected_oms_version": 1,
         "expected_broker_version": 1,
     }

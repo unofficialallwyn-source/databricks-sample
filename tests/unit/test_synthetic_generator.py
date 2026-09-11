@@ -414,9 +414,11 @@ def test_exact_match_scenario_produces_matching_economics() -> None:
     assert expected_result["scenario_id"] == "S-001"
     assert expected_result["business_trade_id"] == base_trade["business_trade_id"]
     assert expected_result["expected_reconciliation_status"] == "MATCHED"
-    assert expected_result["expected_breaks"] == []
+    assert expected_result["expected_break_types"] == []
     assert expected_result["expected_oms_version"] == 1
     assert expected_result["expected_broker_version"] == 1
+    assert oms_events[0]["trade_version"] == 1
+    assert broker_events[0]["confirmation_version"] == 1
 
 def test_generate_scenario_rejects_missing_scenario_id():
     """generate_scenario should raise ValueError if scenario_id is missing."""
