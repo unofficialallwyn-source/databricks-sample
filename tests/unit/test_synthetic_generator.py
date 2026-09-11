@@ -13,7 +13,7 @@ from random import Random
 
 import pytest
 
-from src.trade_recon.synthetic.generator import generate_base_trade, generate_broker_events, generate_oms_events, write_broker_csv, write_manifest, write_oms_jsonl
+from src.trade_recon.synthetic.generator import generate_base_trade, generate_broker_events, generate_oms_events, generate_scenario, write_broker_csv, write_manifest, write_oms_jsonl
 
 
 
@@ -387,10 +387,31 @@ def test_different_seed_changes_generated_dataset() -> None:
     pytest.fail("Implement seed variation test")
 
 
-@pytest.mark.skip(reason="Implement S-001 EXACT_MATCH.")
 def test_exact_match_scenario_produces_matching_economics() -> None:
     """EXACT_MATCH should generate OMS and Broker records with matching economics."""
-    pytest.fail("Implement EXACT_MATCH scenario test")
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+    scenario = {
+        "scenario_id": "S-001",
+        "scenario_name": "EXACT_MATCH",
+    }
+
+    oms_events, broker_events, expected_result = generate_scenario(
+        trade=base_trade,
+        scenario=scenario,
+        rng=Random(12345),
+    )
+
+    assert len(oms_events) == 1
+    assert len(broker_events) == 1
+    assert oms_events[0]["trade_id"] == broker_events[0]["client_trade_id"]
+    assert oms_events[0]["instrument_id"] == broker_events[0]["instrument_code"]
+    assert oms_events[0]["side"] == broker_events[0]["side"]
+    assert oms_events[0]["quantity"] == broker_events[0]["quantity"]
+    assert oms_events[0]["price"] == broker_events[0]["price"]
+    assert oms_events[0]["currency"] == broker_events[0]["currency"]
+    assert oms_events[0]["account_id"] == broker_events[0]["client_account"]
+    assert oms_events[0]["broker_id"] == broker_events[0]["broker_id"]
+    
 
 
 @pytest.mark.skip(reason="Implement S-002 PRICE_MISMATCH.")

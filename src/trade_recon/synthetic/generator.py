@@ -75,7 +75,24 @@ def generate_scenario(
     rng: Random,
 ) -> tuple[list[OmsEvent], list[BrokerEvent], ExpectedResult]:
     """Apply one synthetic scenario and return source events plus the external test oracle."""
-    raise NotImplementedError("TR-016: implement generate_scenario")
+    scenario_id = scenario.get("scenario_id", "UNKNOWN")
+    if scenario_id == "UNKNOWN":
+        raise ValueError("scenario_id is required in scenario config")
+    if scenario_id != "S-001":
+        raise ValueError(f"Unsupported scenario_id: {scenario_id}")
+
+    oms_events = generate_oms_events(trade, scenario, rng)
+    broker_events = generate_broker_events(trade, scenario, rng)
+    expected_result: dict[str, Any] = {
+        "scenario_id": scenario_id,
+        "expected_outcome": "EXACT_MATCH",
+        "business_trade_id": trade["business_trade_id"],
+        "expected_reconciliation_status": "MATCHED",
+        "expected_breaks": [],
+        "expected_oms_version": 1,
+        "expected_broker_version": 1,
+    }
+    return oms_events, broker_events, expected_result
 
 
 def generate_oms_events(
