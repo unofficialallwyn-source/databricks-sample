@@ -13,7 +13,7 @@ from random import Random
 
 import pytest
 
-from src.trade_recon.synthetic.generator import generate_base_trade, generate_broker_events, generate_oms_events, generate_scenario, write_broker_csv, write_manifest, write_oms_jsonl
+from src.trade_recon.synthetic.generator import apply_price_mismatch, generate_base_trade, generate_broker_events, generate_oms_events, generate_scenario, write_broker_csv, write_manifest, write_oms_jsonl
 
 
 
@@ -440,7 +440,7 @@ def test_generate_scenario_rejects_unsupported_scenario():
     """generate_scenario should raise ValueError if scenario_id is unsupported."""
     base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
     scenario = {
-        "scenario_id": "S-002",
+        "scenario_id": "S-999",
         "scenario_name": "PRICE_MISMATCH",
     }
 
@@ -451,13 +451,75 @@ def test_generate_scenario_rejects_unsupported_scenario():
             rng=Random(12345),
         )
 
-    assert "Unsupported scenario_id: S-002" in str(exc_info.value)
+    assert "Unsupported scenario_id: S-999" in str(exc_info.value)
 
-@pytest.mark.skip(reason="Implement S-002 PRICE_MISMATCH.")
 def test_price_mismatch_exceeds_configured_tolerance() -> None:
     """PRICE_MISMATCH should exceed the configured reconciliation tolerance."""
-    pytest.fail("Implement PRICE_MISMATCH scenario test")
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+    scenario = {
+        "scenario_id": "S-002",
+        "scenario_name": "PRICE_MISMATCH",
+        "price_tolerance": "0.01",
+        "price_delta": "0.02",
+    }
 
+    oms_events, broker_events, expected_result = generate_scenario(
+        trade=base_trade,
+        scenario=scenario,
+        rng=Random(12345),
+    )
+
+    assert len(oms_events) == 1
+    assert len(broker_events) == 1
+    assert expected_result["scenario_id"] == "S-002"
+    assert expected_result["expected_reconciliation_status"] == "BREAK"
+    assert expected_result["expected_break_types"] == ["PRICE_MISMATCH"]
+    assert oms_events[0]["trade_id"] == broker_events[0]["client_trade_id"]
+    assert oms_events[0]["instrument_id"] == broker_events[0]["instrument_code"]
+    assert oms_events[0]["side"] == broker_events[0]["side"]
+    assert oms_events[0]["quantity"] == broker_events[0]["quantity"]
+    assert oms_events[0]["price"] != broker_events[0]["price"]
+    assert oms_events[0]["currency"] == broker_events[0]["currency"]
+    assert oms_events[0]["account_id"] == broker_events[0]["client_account"]
+    assert oms_events[0]["broker_id"] == broker_events[0]["broker_id"]
+    assert expected_result["business_trade_id"] == base_trade["business_trade_id"]
+    assert expected_result["expected_oms_version"] == 1
+    assert expected_result["expected_broker_version"] == 1
+    assert oms_events[0]["trade_version"] == 1
+    assert broker_events[0]["confirmation_version"] == 1
+    assert abs(Decimal(broker_events[0]["price"]) - Decimal(oms_events[0]["price"])) > Decimal("0.01")
+    assert Decimal(broker_events[0]["price"]) - Decimal(oms_events[0]["price"]) == Decimal("0.02")
+
+def test_apply_price_mismatch_does_not_mutate_base_trade():
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+    scenario = {
+        "scenario_id": "S-002",
+        "scenario_name": "PRICE_MISMATCH",
+        "price_tolerance": "0.01",
+        "price_delta": "0.02",
+    }
+
+    base_trade_price = Decimal(base_trade["price"])
+
+    mismatched_trade = apply_price_mismatch(base_trade, scenario)
+
+    assert base_trade["business_trade_id"] == mismatched_trade["business_trade_id"]
+    assert Decimal(base_trade["price"]) == base_trade_price
+    assert Decimal(base_trade["price"]) != Decimal(mismatched_trade["price"])
+
+def test_price_mismatch_rejects_delta_within_tolerance():
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+    scenario = {
+        "scenario_id": "S-002",
+        "scenario_name": "PRICE_MISMATCH",
+        "price_tolerance": "0.01",
+        "price_delta": "0.01",
+    }
+
+    with pytest.raises(ValueError) as exc_info:
+        apply_price_mismatch(base_trade, scenario)
+
+    assert "Price delta equal to price tolerance" in str(exc_info.value)
 
 @pytest.mark.skip(reason="Implement S-003 PRICE_WITHIN_TOLERANCE.")
 def test_price_within_tolerance_stays_within_boundary() -> None:
