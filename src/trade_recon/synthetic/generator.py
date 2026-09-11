@@ -29,6 +29,7 @@ ScenarioNameMap = Mapping[str, str]
 ScenarioNameMap = {
     "S-001": "EXACT_MATCH",
     "S-002": "PRICE_MISMATCH",
+    "S-003": "PRICE_WITHIN_TOLERANCE"
 }
 
 def generate_dataset(config: GeneratorConfig) -> GenerationManifest:
@@ -87,7 +88,7 @@ def generate_scenario(
     break_types = []
     if scenario_id == "UNKNOWN":
         raise ValueError("scenario_id is required in scenario config")
-    if scenario_id not in {"S-001", "S-002"}:
+    if scenario_id not in {"S-001", "S-002", "S-003"}:
         raise ValueError(f"Unsupported scenario_id: {scenario_id}")
 
     oms_events = generate_oms_events(trade, scenario, rng)
@@ -98,12 +99,15 @@ def generate_scenario(
         case "S-002":
             broker_events = generate_broker_events(apply_price_mismatch(trade, scenario)
                                                    , scenario, rng)
+        case "S-003":
+            broker_events = generate_broker_events(apply_price_within_tolerance(trade, scenario)
+                                                   , scenario, rng)
 
     expected_result = get_expected_result(scenario_id=scenario_id,
                                            trade_id=trade["business_trade_id"],
                                            scenario_name=ScenarioNameMap.get(scenario_id),
-                                           status="MATCHED" if scenario_id == "S-001" else "BREAK",
-                                           break_types=[] if scenario_id == "S-001" 
+                                           status="MATCHED" if scenario_id in {"S-001", "S-003"} else "BREAK",
+                                           break_types=[] if scenario_id in {"S-001", "S-003"} 
                                            else  (break_types.append(ScenarioNameMap.get(scenario_id)) or break_types))
     return oms_events, broker_events, expected_result
 
@@ -341,6 +345,28 @@ def apply_price_mismatch(
         mismatched_price = (Decimal(trade["price"]) 
                             + Decimal(price_delta)).quantize(Decimal("0.0000000001")) 
         trade_copy["price"] = str(mismatched_price)
+
+    return trade_copy
+
+def apply_price_within_tolerance(
+    trade: SyntheticTrade,
+    scenario: ScenarioConfig,
+) -> SyntheticTrade:
+    """Return a trade/scenario variant whose price difference is within the configured tolerance."""
+    price_tolerance = Decimal(scenario["price_tolerance"])
+    price_delta = Decimal(scenario["price_delta"])
+    trade_copy = copy.deepcopy(trade)
+
+    if price_tolerance <= 0.0 or price_delta <= 0.0:
+        raise ValueError("Price tolerance or delta must be positive")
+
+    if price_delta > price_tolerance:
+        raise ValueError("Price delta must be within price tolerance")
+
+    if price_tolerance >= 0.0 and price_delta > 0.0 and price_delta <= price_tolerance:
+        within_tolerance_price = (Decimal(trade["price"]) 
+                                  + Decimal(price_delta)).quantize(Decimal("0.0000000001")) 
+        trade_copy["price"] = str(within_tolerance_price)
 
     return trade_copy
 
