@@ -13,7 +13,7 @@ from random import Random
 
 import pytest
 
-from src.trade_recon.synthetic.generator import apply_price_mismatch, apply_price_within_tolerance, generate_base_trade, generate_broker_events, generate_oms_events, generate_scenario, write_broker_csv, write_manifest, write_oms_jsonl
+from src.trade_recon.synthetic.generator import apply_price_mismatch, apply_price_within_tolerance, apply_quantity_mismatch, generate_base_trade, generate_broker_events, generate_oms_events, generate_scenario, write_broker_csv, write_manifest, write_oms_jsonl
 
 
 
@@ -736,6 +736,85 @@ def test_price_within_tolerance_rejects_negative_tolerance() -> None:
         )
 
     assert "Price tolerance or delta must be positive" in str(exc_info.value)
+
+def test_quantity_mismatch_produces_break() -> None:
+    """QUANTITY_MISMATCH should produce a break due to differing quantities."""
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+    scenario = {
+        "scenario_id": "S-004",
+        "scenario_name": "QUANTITY_MISMATCH",
+        "quantity_delta": "10.000000",
+    }
+
+    oms_events, broker_events, expected_result = generate_scenario(
+        trade=base_trade,
+        scenario=scenario,
+        rng=Random(12345),
+    )
+    oms_quantity = Decimal(oms_events[0]["quantity"])
+    broker_quantity = Decimal(broker_events[0]["quantity"])
+
+    assert len(oms_events) == 1
+    assert len(broker_events) == 1
+    assert expected_result["scenario_id"] == "S-004"
+    assert expected_result["expected_reconciliation_status"] == "BREAK"
+    assert expected_result["expected_break_types"] == ["QUANTITY_MISMATCH"]
+    assert oms_events[0]["trade_id"] == broker_events[0]["client_trade_id"]
+    assert oms_events[0]["instrument_id"] == broker_events[0]["instrument_code"]
+    assert oms_events[0]["side"] == broker_events[0]["side"]
+    assert oms_events[0]["quantity"] != broker_events[0]["quantity"]
+    assert oms_events[0]["price"] == broker_events[0]["price"]
+    assert oms_events[0]["currency"] == broker_events[0]["currency"]
+    assert oms_events[0]["account_id"] == broker_events[0]["client_account"]
+    assert oms_events[0]["broker_id"] == broker_events[0]["broker_id"]
+    assert expected_result["business_trade_id"] == base_trade["business_trade_id"]
+    assert expected_result["expected_oms_version"] == 1
+    assert expected_result["expected_broker_version"] == 1
+    assert oms_events[0]["trade_version"] == 1
+    assert broker_events[0]["confirmation_version"] == 1
+    assert (broker_quantity - oms_quantity == Decimal("10.000000"))
+
+def test_apply_quantity_mismatch_does_not_mutate_base_trade() -> None:
+    """QUANTITY_MISMATCH should not mutate the base trade."""
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+    scenario = {
+        "scenario_id": "S-004",
+        "scenario_name": "QUANTITY_MISMATCH",
+        "quantity_delta": "10.000000",
+    }
+
+    base_trade_quantity = Decimal(base_trade["quantity"])
+
+    mismatched_trade_quantity = apply_quantity_mismatch(
+        trade=base_trade,
+        scenario=scenario,
+    )
+
+    assert base_trade["business_trade_id"] == mismatched_trade_quantity["business_trade_id"]
+    assert Decimal(base_trade["quantity"]) == base_trade_quantity
+    assert Decimal(base_trade["quantity"]) != Decimal(mismatched_trade_quantity["quantity"])
+
+@pytest.mark.parametrize(
+    "quantity_delta",
+    ["0.000000", "-10.000000"],
+)
+def test_quantity_mismatch_rejects_negative_delta(quantity_delta) -> None:
+    """QUANTITY_MISMATCH should reject a negative delta."""
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+    scenario = {
+        "scenario_id": "S-004",
+        "scenario_name": "QUANTITY_MISMATCH",
+        "quantity_delta": quantity_delta,
+    }
+
+    with pytest.raises(ValueError) as exc_info:
+        apply_quantity_mismatch(
+            trade=base_trade,
+            scenario=scenario,
+        )
+
+    assert "Quantity delta must be positive" in str(exc_info.value)
+
 
 @pytest.mark.skip(reason="Implement S-007 LATE_CONFIRMATION.")
 def test_late_confirmation_uses_later_delivery_phase() -> None:
