@@ -29,7 +29,8 @@ ScenarioNameMap = Mapping[str, str]
 ScenarioNameMap = {
     "S-001": "EXACT_MATCH",
     "S-002": "PRICE_MISMATCH",
-    "S-003": "PRICE_WITHIN_TOLERANCE"
+    "S-003": "PRICE_WITHIN_TOLERANCE",
+    "S-004": "QUANTITY_MISMATCH"
 }
 
 def generate_dataset(config: GeneratorConfig) -> GenerationManifest:
@@ -88,7 +89,7 @@ def generate_scenario(
     break_types = []
     if scenario_id == "UNKNOWN":
         raise ValueError("scenario_id is required in scenario config")
-    if scenario_id not in {"S-001", "S-002", "S-003"}:
+    if scenario_id not in {"S-001", "S-002", "S-003", "S-004"}:
         raise ValueError(f"Unsupported scenario_id: {scenario_id}")
 
     oms_events = generate_oms_events(trade, scenario, rng)
@@ -101,6 +102,9 @@ def generate_scenario(
                                                    , scenario, rng)
         case "S-003":
             broker_events = generate_broker_events(apply_price_within_tolerance(trade, scenario)
+                                                   , scenario, rng)
+        case "S-004":
+            broker_events = generate_broker_events(apply_quantity_mismatch(trade, scenario)
                                                    , scenario, rng)
 
     expected_result = get_expected_result(scenario_id=scenario_id,
@@ -376,7 +380,20 @@ def apply_quantity_mismatch(
     scenario: ScenarioConfig,
 ) -> SyntheticTrade:
     """Return a trade/scenario variant with a quantity mismatch."""
-    raise NotImplementedError("TR-016: implement apply_quantity_mismatch")
+    base_quantity = Decimal(trade["quantity"])
+    quantity_delta = Decimal(scenario["quantity_delta"])
+    trade_copy = copy.deepcopy(trade)
+
+    if quantity_delta < Decimal("0.000001"):
+        raise ValueError("Quantity delta must be positive")
+
+    if quantity_delta > 0.0:
+        mismatched_quantity = base_quantity + quantity_delta
+
+    if mismatched_quantity > 0.0:
+        trade_copy["quantity"] = f"{mismatched_quantity:.6f}"
+
+    return trade_copy
 
 
 def apply_oms_amendment(
