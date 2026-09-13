@@ -384,7 +384,7 @@ def apply_quantity_mismatch(
     quantity_delta = Decimal(scenario["quantity_delta"])
     trade_copy = copy.deepcopy(trade)
 
-    if quantity_delta <= 0.0:
+    if quantity_delta <= Decimal("0.000001"):
         raise ValueError("Quantity delta must be positive")
 
     if quantity_delta > 0.0:

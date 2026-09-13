@@ -757,6 +757,7 @@ def test_quantity_mismatch_produces_break() -> None:
     assert len(oms_events) == 1
     assert len(broker_events) == 1
     assert expected_result["scenario_id"] == "S-004"
+    assert expected_result["scenario_name"] == "QUANTITY_MISMATCH"
     assert expected_result["expected_reconciliation_status"] == "BREAK"
     assert expected_result["expected_break_types"] == ["QUANTITY_MISMATCH"]
     assert oms_events[0]["trade_id"] == broker_events[0]["client_trade_id"]
@@ -767,6 +768,11 @@ def test_quantity_mismatch_produces_break() -> None:
     assert oms_events[0]["currency"] == broker_events[0]["currency"]
     assert oms_events[0]["account_id"] == broker_events[0]["client_account"]
     assert oms_events[0]["broker_id"] == broker_events[0]["broker_id"]
+    assert oms_events[0]["venue_id"] == broker_events[0]["venue"]
+    assert oms_events[0]["trade_date"] == broker_events[0]["trade_date"]
+    assert oms_events[0]["execution_timestamp"] == broker_events[0]["execution_timestamp"]
+    assert oms_events[0]["settlement_date"] == broker_events[0]["settlement_date"]
+    assert oms_events[0]["instrument_type"] == broker_events[0]["instrument_type"]
     assert expected_result["business_trade_id"] == base_trade["business_trade_id"]
     assert expected_result["expected_oms_version"] == 1
     assert expected_result["expected_broker_version"] == 1
@@ -796,7 +802,7 @@ def test_apply_quantity_mismatch_does_not_mutate_base_trade() -> None:
 
 @pytest.mark.parametrize(
     "quantity_delta",
-    ["0.000000", "-10.000000"],
+    ["0.000000", "-10.000000", "0.0000001", "-0.0000001"],
 )
 def test_quantity_mismatch_rejects_negative_delta(quantity_delta) -> None:
     """QUANTITY_MISMATCH should reject a negative delta."""
