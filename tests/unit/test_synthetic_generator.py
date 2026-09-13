@@ -737,13 +737,17 @@ def test_price_within_tolerance_rejects_negative_tolerance() -> None:
 
     assert "Price tolerance or delta must be positive" in str(exc_info.value)
 
-def test_quantity_mismatch_produces_break() -> None:
+@pytest.mark.parametrize(
+    "quantity_delta",
+    ["10.000000", "0.000001"],
+)
+def test_quantity_mismatch_produces_break(quantity_delta) -> None:
     """QUANTITY_MISMATCH should produce a break due to differing quantities."""
     base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
     scenario = {
         "scenario_id": "S-004",
         "scenario_name": "QUANTITY_MISMATCH",
-        "quantity_delta": "10.000000",
+        "quantity_delta": quantity_delta,
     }
 
     oms_events, broker_events, expected_result = generate_scenario(
@@ -778,7 +782,7 @@ def test_quantity_mismatch_produces_break() -> None:
     assert expected_result["expected_broker_version"] == 1
     assert oms_events[0]["trade_version"] == 1
     assert broker_events[0]["confirmation_version"] == 1
-    assert (broker_quantity - oms_quantity == Decimal("10.000000"))
+    assert (broker_quantity - oms_quantity == Decimal(quantity_delta))
 
 def test_apply_quantity_mismatch_does_not_mutate_base_trade() -> None:
     """QUANTITY_MISMATCH should not mutate the base trade."""
