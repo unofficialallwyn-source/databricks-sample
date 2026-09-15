@@ -918,6 +918,46 @@ def test_multi_field_mismatch_rejects_small_quantity_delta() -> None:
 
     assert "Quantity delta must be positive" in str(exc_info.value)
 
+def test_missing_confirmation_produces_missing_confirmation_break()-> None:
+    """MISSING_CONFIRMATION should produce a missing confirmation break."""
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+    scenario = {
+        "scenario_id": "S-006",
+        "scenario_name": "MISSING_CONFIRMATION",
+    }
+
+    original_trade = dict(base_trade)
+
+    oms_events, broker_events, expected_result = generate_scenario(base_trade, scenario, Random(12345))
+
+    assert len(oms_events) == 1
+    assert len(broker_events) == 0
+    assert broker_events == []
+    assert base_trade == original_trade
+    assert expected_result["expected_reconciliation_status"] == "BREAK"
+    assert expected_result["expected_break_types"] == ["MISSING_CONFIRMATION"]
+    assert expected_result["scenario_id"] == "S-006"
+    assert expected_result["scenario_name"] == "MISSING_CONFIRMATION"
+    assert expected_result["expected_oms_version"] == 1
+    assert expected_result["expected_broker_version"] is None
+    assert oms_events[0]["trade_version"] == 1
+    assert oms_events[0]["trade_id"] == base_trade["business_trade_id"]
+    assert oms_events[0]["instrument_id"] == base_trade["instrument_id"]
+    assert oms_events[0]["side"] == base_trade["side"]
+    assert oms_events[0]["quantity"] == base_trade["quantity"]
+    assert oms_events[0]["price"] == base_trade["price"]
+    assert oms_events[0]["currency"] == base_trade["currency"]
+    assert oms_events[0]["account_id"] == base_trade["account_id"]
+    assert oms_events[0]["broker_id"] == base_trade["broker_id"]
+    assert oms_events[0]["venue_id"] == base_trade["venue_id"]
+    assert oms_events[0]["trade_date"] == base_trade["trade_date"]
+    assert oms_events[0]["execution_timestamp"] == base_trade["execution_timestamp"]
+    assert oms_events[0]["settlement_date"] == base_trade["settlement_date"]
+    assert oms_events[0]["instrument_type"] == base_trade["instrument_type"]
+    assert expected_result["business_trade_id"] == base_trade["business_trade_id"]
+    assert oms_events[0]["event_type"] == "NEW"
+
+
 @pytest.mark.skip(reason="Implement S-007 LATE_CONFIRMATION.")
 def test_late_confirmation_uses_later_delivery_phase() -> None:
     """LATE_CONFIRMATION should place Broker delivery after the OMS/SLA phase."""

@@ -33,11 +33,13 @@ ScenarioNameMap = {
     "S-003": "PRICE_WITHIN_TOLERANCE",
     "S-004": "QUANTITY_MISMATCH",
     "S-005": "MULTI_FIELD_MISMATCH",
+    "S-006": "MISSING_CONFIRMATION",
 }
 BreakTypeMap = {
     "S-002": ["PRICE_MISMATCH"],
     "S-004": ["QUANTITY_MISMATCH"],
     "S-005": ["PRICE_MISMATCH", "QUANTITY_MISMATCH"],
+    "S-006": ["MISSING_CONFIRMATION"],
 }
 
 def generate_dataset(config: GeneratorConfig) -> GenerationManifest:
@@ -96,7 +98,7 @@ def generate_scenario(
     break_types = []
     if scenario_id == "UNKNOWN":
         raise ValueError("scenario_id is required in scenario config")
-    if scenario_id not in {"S-001", "S-002", "S-003", "S-004", "S-005"}:
+    if scenario_id not in {"S-001", "S-002", "S-003", "S-004", "S-005", "S-006"}:
         raise ValueError(f"Unsupported scenario_id: {scenario_id}")
 
     oms_events = generate_oms_events(trade, scenario, rng)
@@ -116,15 +118,25 @@ def generate_scenario(
         case "S-005":
             broker_events = generate_broker_events(apply_multi_field_mismatch(trade, scenario)
                                                    , scenario, rng)
+        case "S-006":
+            broker_events = []  # Missing confirmation means no broker event
+
 
     expected_result = get_expected_result(scenario_id=scenario_id,
                                            trade_id=trade["business_trade_id"],
                                            scenario_name=ScenarioNameMap.get(scenario_id),
-                                           status="MATCHED" if scenario_id in {"S-001", "S-003"} else "BREAK")
+                                           status="MATCHED" if scenario_id in {"S-001", "S-003"} else "BREAK",
+                                           expected_oms_version=1,
+                                           expected_broker_version=1 if scenario_id != "S-006" else None)
     return oms_events, broker_events, expected_result
 
 def get_expected_result(
-    scenario_id: str, trade_id: str, scenario_name: str, status: str,
+    scenario_id: str,
+    trade_id: str,
+    scenario_name: str,
+    status: str,
+    expected_oms_version: int | None = 1,
+    expected_broker_version: int | None = 1,
 ) -> dict[str, Any]:
     """Return the expected reconciliation result for a synthetic trade/scenario pair."""
     expected_result: dict[str, Any] = {
@@ -133,8 +145,8 @@ def get_expected_result(
         "business_trade_id": trade_id,
         "expected_reconciliation_status": status,
         "expected_break_types": list(BreakTypeMap.get(scenario_id, [])),
-        "expected_oms_version": 1,
-        "expected_broker_version": 1,
+        "expected_oms_version": expected_oms_version,
+        "expected_broker_version": expected_broker_version,
     }
     return expected_result
     
