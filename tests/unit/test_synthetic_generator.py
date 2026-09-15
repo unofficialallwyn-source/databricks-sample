@@ -926,11 +926,14 @@ def test_missing_confirmation_produces_missing_confirmation_break()-> None:
         "scenario_name": "MISSING_CONFIRMATION",
     }
 
+    original_trade = dict(base_trade)
+
     oms_events, broker_events, expected_result = generate_scenario(base_trade, scenario, Random(12345))
 
     assert len(oms_events) == 1
     assert len(broker_events) == 0
     assert broker_events == []
+    assert base_trade == original_trade
     assert expected_result["expected_reconciliation_status"] == "BREAK"
     assert expected_result["expected_break_types"] == ["MISSING_CONFIRMATION"]
     assert expected_result["scenario_id"] == "S-006"
