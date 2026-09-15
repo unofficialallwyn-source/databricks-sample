@@ -25,12 +25,19 @@ DeliveryBatch = Mapping[str, Any]
 GenerationManifest = Mapping[str, Any]
 ExpectedResult = Mapping[str, Any]
 ScenarioNameMap = Mapping[str, str]
+BreakTypeMap = Mapping[str, list[str]]
 
 ScenarioNameMap = {
     "S-001": "EXACT_MATCH",
     "S-002": "PRICE_MISMATCH",
     "S-003": "PRICE_WITHIN_TOLERANCE",
-    "S-004": "QUANTITY_MISMATCH"
+    "S-004": "QUANTITY_MISMATCH",
+    "S-005": "MULTI_FIELD_MISMATCH",
+}
+BreakTypeMap = {
+    "S-002": ["PRICE_MISMATCH"],
+    "S-004": ["QUANTITY_MISMATCH"],
+    "S-005": ["PRICE_MISMATCH", "QUANTITY_MISMATCH"],
 }
 
 def generate_dataset(config: GeneratorConfig) -> GenerationManifest:
@@ -89,7 +96,7 @@ def generate_scenario(
     break_types = []
     if scenario_id == "UNKNOWN":
         raise ValueError("scenario_id is required in scenario config")
-    if scenario_id not in {"S-001", "S-002", "S-003", "S-004"}:
+    if scenario_id not in {"S-001", "S-002", "S-003", "S-004", "S-005"}:
         raise ValueError(f"Unsupported scenario_id: {scenario_id}")
 
     oms_events = generate_oms_events(trade, scenario, rng)
@@ -106,18 +113,18 @@ def generate_scenario(
         case "S-004":
             broker_events = generate_broker_events(apply_quantity_mismatch(trade, scenario)
                                                    , scenario, rng)
+        case "S-005":
+            broker_events = generate_broker_events(apply_multi_field_mismatch(trade, scenario)
+                                                   , scenario, rng)
 
     expected_result = get_expected_result(scenario_id=scenario_id,
                                            trade_id=trade["business_trade_id"],
                                            scenario_name=ScenarioNameMap.get(scenario_id),
-                                           status="MATCHED" if scenario_id in {"S-001", "S-003"} else "BREAK",
-                                           break_types=[] if scenario_id in {"S-001", "S-003"} 
-                                           else  (break_types.append(ScenarioNameMap.get(scenario_id)) or break_types))
+                                           status="MATCHED" if scenario_id in {"S-001", "S-003"} else "BREAK")
     return oms_events, broker_events, expected_result
 
 def get_expected_result(
-    scenario_id: str, trade_id: str, scenario_name: str, status: str
-    , break_types: list[str],
+    scenario_id: str, trade_id: str, scenario_name: str, status: str,
 ) -> dict[str, Any]:
     """Return the expected reconciliation result for a synthetic trade/scenario pair."""
     expected_result: dict[str, Any] = {
@@ -125,7 +132,7 @@ def get_expected_result(
         "scenario_name": scenario_name,
         "business_trade_id": trade_id,
         "expected_reconciliation_status": status,
-        "expected_break_types": break_types,
+        "expected_break_types": BreakTypeMap.get(scenario_id, []),
         "expected_oms_version": 1,
         "expected_broker_version": 1,
     }
@@ -394,6 +401,19 @@ def apply_quantity_mismatch(
         trade_copy["quantity"] = f"{mismatched_quantity:.6f}"
 
     return trade_copy
+
+def apply_multi_field_mismatch(
+    trade: SyntheticTrade,
+    scenario: ScenarioConfig,
+) -> SyntheticTrade:
+    """Return a trade/scenario variant with multiple field mismatches."""
+    trade_copy = copy.deepcopy(trade)
+    
+    
+    mismatched_trade = apply_price_mismatch(trade_copy, scenario)
+    mismatched_trade = apply_quantity_mismatch(mismatched_trade, scenario)
+    
+    return mismatched_trade
 
 
 def apply_oms_amendment(

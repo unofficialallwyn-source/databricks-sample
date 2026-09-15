@@ -13,7 +13,7 @@ from random import Random
 
 import pytest
 
-from src.trade_recon.synthetic.generator import apply_price_mismatch, apply_price_within_tolerance, apply_quantity_mismatch, generate_base_trade, generate_broker_events, generate_oms_events, generate_scenario, write_broker_csv, write_manifest, write_oms_jsonl
+from src.trade_recon.synthetic.generator import apply_multi_field_mismatch, apply_price_mismatch, apply_price_within_tolerance, apply_quantity_mismatch, generate_base_trade, generate_broker_events, generate_oms_events, generate_scenario, write_broker_csv, write_manifest, write_oms_jsonl
 
 
 
@@ -825,6 +825,80 @@ def test_quantity_mismatch_rejects_negative_delta(quantity_delta) -> None:
 
     assert "Quantity delta must be positive" in str(exc_info.value)
 
+def test_multi_field_mismatch_produces_multiple_breaks() -> None:
+    """MULTI_FIELD_MISMATCH should produce multiple breaks due to differing fields."""
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+    scenario = {
+        "scenario_id": "S-005",
+        "scenario_name": "MULTI_FIELD_MISMATCH",
+        "price_delta": "0.02",
+        "price_tolerance": "0.01",
+        "quantity_delta": "10.000000",
+    }
+
+    oms_events, broker_events, expected_result = generate_scenario(
+        trade=base_trade,
+        scenario=scenario,
+        rng=Random(12345),
+    )
+
+    original_price = Decimal(base_trade["price"])
+    original_quantity = Decimal(base_trade["quantity"])
+
+    oms_price = Decimal(oms_events[0]["price"])
+    broker_price = Decimal(broker_events[0]["price"])
+
+    oms_quantity = Decimal(oms_events[0]["quantity"])
+    broker_quantity = Decimal(broker_events[0]["quantity"])
+
+    assert len(oms_events) == 1
+    assert len(broker_events) == 1
+    assert base_trade["price"] == str(original_price)
+    assert base_trade["quantity"] == str(original_quantity)
+    assert expected_result["scenario_id"] == "S-005"
+    assert expected_result["scenario_name"] == "MULTI_FIELD_MISMATCH"
+    assert expected_result["expected_reconciliation_status"] == "BREAK"
+    assert set(expected_result["expected_break_types"]) == {"PRICE_MISMATCH", "QUANTITY_MISMATCH"}
+    assert broker_price - oms_price == Decimal("0.02")
+    assert broker_quantity - oms_quantity == Decimal("10.000000")
+
+def test_multi_field_mismatch_rejects_price_delta_equal_to_tolerance() -> None:
+    """MULTI_FIELD_MISMATCH should reject a price delta equal to the tolerance."""
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+    scenario = {
+        "scenario_id": "S-005",
+        "scenario_name": "MULTI_FIELD_MISMATCH",
+        "price_tolerance": "0.01",
+        "price_delta": "0.01",
+        "quantity_delta": "10.000000",
+    }
+
+    with pytest.raises(ValueError) as exc_info:
+        apply_multi_field_mismatch(
+            trade=base_trade,
+            scenario=scenario,
+        )
+
+    assert "Price delta must exceed price tolerance" in str(exc_info.value)
+
+def test_multi_field_mismatch_rejects_small_quantity_delta() -> None:
+    """MULTI_FIELD_MISMATCH should reject a small quantity delta."""
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+    scenario = {
+        "scenario_id": "S-005",
+        "scenario_name": "MULTI_FIELD_MISMATCH",
+        "price_tolerance": "0.01",
+        "price_delta": "0.02",
+        "quantity_delta": "0.0000001",
+    }
+
+    with pytest.raises(ValueError) as exc_info:
+        apply_multi_field_mismatch(
+            trade=base_trade,
+            scenario=scenario,
+        )
+
+    assert "Quantity delta must be positive" in str(exc_info.value)
 
 @pytest.mark.skip(reason="Implement S-007 LATE_CONFIRMATION.")
 def test_late_confirmation_uses_later_delivery_phase() -> None:
