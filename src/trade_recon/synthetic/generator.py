@@ -132,7 +132,7 @@ def get_expected_result(
         "scenario_name": scenario_name,
         "business_trade_id": trade_id,
         "expected_reconciliation_status": status,
-        "expected_break_types": BreakTypeMap.get(scenario_id, []),
+        "expected_break_types": list(BreakTypeMap.get(scenario_id, [])),
         "expected_oms_version": 1,
         "expected_broker_version": 1,
     }

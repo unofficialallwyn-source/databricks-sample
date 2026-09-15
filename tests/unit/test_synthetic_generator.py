@@ -858,9 +858,27 @@ def test_multi_field_mismatch_produces_multiple_breaks() -> None:
     assert expected_result["scenario_id"] == "S-005"
     assert expected_result["scenario_name"] == "MULTI_FIELD_MISMATCH"
     assert expected_result["expected_reconciliation_status"] == "BREAK"
-    assert set(expected_result["expected_break_types"]) == {"PRICE_MISMATCH", "QUANTITY_MISMATCH"}
+    assert expected_result["expected_break_types"] == ["PRICE_MISMATCH", "QUANTITY_MISMATCH"]
     assert broker_price - oms_price == Decimal("0.02")
     assert broker_quantity - oms_quantity == Decimal("10.000000")
+    assert oms_events[0]["trade_id"] == broker_events[0]["client_trade_id"]
+    assert oms_events[0]["instrument_id"] == broker_events[0]["instrument_code"]
+    assert oms_events[0]["side"] == broker_events[0]["side"]
+    assert oms_events[0]["quantity"] != broker_events[0]["quantity"]
+    assert oms_events[0]["price"] != broker_events[0]["price"]
+    assert oms_events[0]["currency"] == broker_events[0]["currency"]
+    assert oms_events[0]["account_id"] == broker_events[0]["client_account"]
+    assert oms_events[0]["broker_id"] == broker_events[0]["broker_id"]
+    assert oms_events[0]["venue_id"] == broker_events[0]["venue"]
+    assert oms_events[0]["trade_date"] == broker_events[0]["trade_date"]
+    assert oms_events[0]["execution_timestamp"] == broker_events[0]["execution_timestamp"]
+    assert oms_events[0]["settlement_date"] == broker_events[0]["settlement_date"]
+    assert oms_events[0]["instrument_type"] == broker_events[0]["instrument_type"]
+    assert expected_result["business_trade_id"] == base_trade["business_trade_id"]
+    assert expected_result["expected_oms_version"] == 1
+    assert expected_result["expected_broker_version"] == 1
+    assert oms_events[0]["trade_version"] == 1
+    assert broker_events[0]["confirmation_version"] == 1
 
 def test_multi_field_mismatch_rejects_price_delta_equal_to_tolerance() -> None:
     """MULTI_FIELD_MISMATCH should reject a price delta equal to the tolerance."""
