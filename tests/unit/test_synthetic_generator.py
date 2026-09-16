@@ -10,7 +10,10 @@ from random import Random
 import pytest
 
 from src.trade_recon.synthetic.generator import (
+    BreakTypeMap,
+    ExpectedBreakHistoryMap,
     SCENARIO_NAMES,
+    ScenarioNameMap,
     apply_broker_correction,
     apply_cancellation,
     apply_oms_amendment,
@@ -53,6 +56,12 @@ def _generate(scenario_id: str, **overrides):
 
 def test_all_31_scenarios_are_registered() -> None:
     assert list(SCENARIO_NAMES) == [f"S-{i:03d}" for i in range(1, 32)]
+
+
+def test_backward_compatible_scenario_aliases_are_available() -> None:
+    assert ScenarioNameMap is SCENARIO_NAMES
+    assert BreakTypeMap["S-006"] == ["MISSING_CONFIRMATION"]
+    assert ExpectedBreakHistoryMap["S-007"] == ["MISSING_CONFIRMATION"]
 
 
 def test_generate_base_trade_is_deterministic_and_source_neutral() -> None:
