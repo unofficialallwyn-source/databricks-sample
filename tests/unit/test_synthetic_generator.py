@@ -968,14 +968,15 @@ def test_late_confirmation_uses_later_delivery_phase() -> None:
         "missing_counterparty_sla_minutes": 30,
         "late_by_minutes": 5,
     }
+
+    original_trade = dict(base_trade)
     
     oms_events, broker_events, expected_result = generate_scenario(
         trade=base_trade,
         scenario=scenario,
         rng=Random(12345),
     )
-    original_trade = dict(base_trade)
-
+    
     delivery_batches = assign_delivery_batches(oms_events, broker_events, scenario)
 
     assert len(oms_events) == 1
