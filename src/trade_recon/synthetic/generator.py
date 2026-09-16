@@ -93,7 +93,12 @@ VALIDATION_ERRORS: dict[str, list[str]] = {
     "S-028": ["INVALID_ENUM"],
 }
 
-# Backward-compatible aliases retained for earlier milestones/tests.\nScenarioNameMap = SCENARIO_NAMES\nBreakTypeMap = CURRENT_BREAK_TYPES\nExpectedBreakHistoryMap = BREAK_HISTORY\n\nMATCHED_SCENARIOS = {
+# Backward-compatible aliases retained for earlier milestones/tests.
+ScenarioNameMap = SCENARIO_NAMES
+BreakTypeMap = CURRENT_BREAK_TYPES
+ExpectedBreakHistoryMap = BREAK_HISTORY
+
+MATCHED_SCENARIOS = {
     "S-001",
     "S-003",
     "S-007",
