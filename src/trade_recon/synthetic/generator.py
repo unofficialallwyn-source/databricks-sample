@@ -34,12 +34,16 @@ ScenarioNameMap = {
     "S-004": "QUANTITY_MISMATCH",
     "S-005": "MULTI_FIELD_MISMATCH",
     "S-006": "MISSING_CONFIRMATION",
+    "S-007": "LATE_CONFIRMATION",
 }
 BreakTypeMap = {
     "S-002": ["PRICE_MISMATCH"],
     "S-004": ["QUANTITY_MISMATCH"],
     "S-005": ["PRICE_MISMATCH", "QUANTITY_MISMATCH"],
     "S-006": ["MISSING_CONFIRMATION"],
+}
+ExpectedBreakHistoryMap = {
+    "S-007": ["MISSING_CONFIRMATION"],
 }
 
 def generate_dataset(config: GeneratorConfig) -> GenerationManifest:
@@ -98,7 +102,7 @@ def generate_scenario(
     break_types = []
     if scenario_id == "UNKNOWN":
         raise ValueError("scenario_id is required in scenario config")
-    if scenario_id not in {"S-001", "S-002", "S-003", "S-004", "S-005", "S-006"}:
+    if scenario_id not in {"S-001", "S-002", "S-003", "S-004", "S-005", "S-006", "S-007"}:
         raise ValueError(f"Unsupported scenario_id: {scenario_id}")
 
     oms_events = generate_oms_events(trade, scenario, rng)
@@ -120,12 +124,14 @@ def generate_scenario(
                                                    , scenario, rng)
         case "S-006":
             broker_events = []  # Missing confirmation means no broker event
+        case "S-007":
+            broker_events = generate_broker_events(trade, scenario, rng)
 
 
     expected_result = get_expected_result(scenario_id=scenario_id,
                                            trade_id=trade["business_trade_id"],
                                            scenario_name=ScenarioNameMap.get(scenario_id),
-                                           status="MATCHED" if scenario_id in {"S-001", "S-003"} else "BREAK",
+                                           status="MATCHED" if scenario_id in {"S-001", "S-003", "S-007"} else "BREAK",
                                            expected_oms_version=1,
                                            expected_broker_version=1 if scenario_id != "S-006" else None)
     return oms_events, broker_events, expected_result
@@ -147,6 +153,7 @@ def get_expected_result(
         "expected_break_types": list(BreakTypeMap.get(scenario_id, [])),
         "expected_oms_version": expected_oms_version,
         "expected_broker_version": expected_broker_version,
+        "expected_break_history": list(ExpectedBreakHistoryMap.get(scenario_id, []))
     }
     return expected_result
     
@@ -230,8 +237,33 @@ def assign_delivery_batches(
     scenario: ScenarioConfig,
 ) -> list[DeliveryBatch]:
     """Assign generated source events to delivery phases/files independently of source version order."""
-    raise NotImplementedError("TR-016: implement assign_delivery_batches")
+    sla = scenario["missing_counterparty_sla_minutes"]
+    late_by_minutes = scenario["late_by_minutes"]
+    delivery_batches: list[DeliveryBatch] = []
 
+    if sla <= 0 or late_by_minutes <= 0:
+        raise ValueError("SLA and late_by_minutes must be non-zero and non-negative")
+
+    broker_delivery_offset = timedelta(minutes=sla + late_by_minutes)
+
+    #create 2 batches batch 1 and batch 2
+    batch_1 = {
+        "batch_id": "BATCH_001",
+        "delivery_phase": 1,
+        "delivery_offset_minutes": 0,
+        "oms_events": oms_events,
+        "broker_events": [],
+    }
+    batch_2 = {
+        "batch_id": "BATCH_002",
+        "delivery_phase": 2,
+        "delivery_offset_minutes": broker_delivery_offset.total_seconds() / 60,
+        "oms_events": [],
+        "broker_events": broker_events
+    }
+    delivery_batches.extend([batch_1, batch_2])
+
+    return delivery_batches
 
 def write_oms_jsonl(
     events: Sequence[OmsEvent],
