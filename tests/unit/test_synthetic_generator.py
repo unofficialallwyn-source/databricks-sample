@@ -13,7 +13,7 @@ from random import Random
 
 import pytest
 
-from src.trade_recon.synthetic.generator import apply_multi_field_mismatch, apply_price_mismatch, apply_price_within_tolerance, apply_quantity_mismatch, generate_base_trade, generate_broker_events, generate_oms_events, generate_scenario, write_broker_csv, write_manifest, write_oms_jsonl
+from src.trade_recon.synthetic.generator import apply_multi_field_mismatch, apply_price_mismatch, apply_price_within_tolerance, apply_quantity_mismatch, assign_delivery_batches, generate_base_trade, generate_broker_events, generate_oms_events, generate_scenario, write_broker_csv, write_manifest, write_oms_jsonl
 
 
 
@@ -958,11 +958,141 @@ def test_missing_confirmation_produces_missing_confirmation_break()-> None:
     assert oms_events[0]["event_type"] == "NEW"
 
 
-@pytest.mark.skip(reason="Implement S-007 LATE_CONFIRMATION.")
+
 def test_late_confirmation_uses_later_delivery_phase() -> None:
     """LATE_CONFIRMATION should place Broker delivery after the OMS/SLA phase."""
-    pytest.fail("Implement staged delivery test")
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+    scenario = {
+        "scenario_id": "S-007",
+        "scenario_name": "LATE_CONFIRMATION",
+        "missing_counterparty_sla_minutes": 30,
+        "late_by_minutes": 5,
+    }
+    
+    oms_events, broker_events, expected_result = generate_scenario(
+        trade=base_trade,
+        scenario=scenario,
+        rng=Random(12345),
+    )
 
+    delivery_batches = assign_delivery_batches(oms_events, broker_events, scenario)
+
+    assert len(oms_events) == 1
+    assert len(broker_events) == 1
+    assert expected_result["expected_reconciliation_status"] == "MATCHED"
+    assert expected_result["expected_break_types"] == []
+    assert expected_result["scenario_id"] == "S-007"
+    assert expected_result["scenario_name"] == "LATE_CONFIRMATION"
+    assert expected_result["expected_oms_version"] == 1
+    assert expected_result["expected_broker_version"] == 1
+    assert oms_events[0]["trade_version"] == 1
+    assert broker_events[0]["confirmation_version"] == 1
+    assert oms_events[0]["trade_id"] == broker_events[0]["client_trade_id"]
+    assert oms_events[0]["instrument_id"] == broker_events[0]["instrument_code"]
+    assert oms_events[0]["side"] == broker_events[0]["side"]
+    assert oms_events[0]["quantity"] == broker_events[0]["quantity"]
+    assert oms_events[0]["price"] == broker_events[0]["price"]
+    assert oms_events[0]["currency"] == broker_events[0]["currency"]
+    assert oms_events[0]["account_id"] == broker_events[0]["client_account"]
+    assert oms_events[0]["broker_id"] == broker_events[0]["broker_id"]
+    assert len(delivery_batches) == 2
+    assert delivery_batches[0]["batch_id"] == "BATCH_001"
+    assert delivery_batches[1]["batch_id"] == "BATCH_002"
+    assert delivery_batches[0]["delivery_offset_minutes"] == 0
+    assert delivery_batches[0]["oms_events"] == oms_events
+    assert delivery_batches[0]["broker_events"] == []
+    assert delivery_batches[1]["oms_events"] == []
+    assert delivery_batches[1]["broker_events"] == broker_events
+    assert (delivery_batches[1]["delivery_offset_minutes"] > scenario["missing_counterparty_sla_minutes"])
+    assert delivery_batches[1]["delivery_offset_minutes"] == 35
+
+def test_late_confirmation_rejects_negative_sla() -> None:
+    """LATE_CONFIRMATION should reject a negative SLA value."""
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+
+    scenario = {
+        "scenario_id": "S-007",
+        "scenario_name": "LATE_CONFIRMATION",
+        "missing_counterparty_sla_minutes": -1,
+        "late_by_minutes": 0,
+    }
+
+    oms_events, broker_events, expected_result = generate_scenario(
+                trade=base_trade,
+                scenario=scenario,
+                rng=Random(12345),
+            )
+    
+    with pytest.raises(ValueError) as exc_info:
+        assign_delivery_batches(oms_events, broker_events, scenario)
+
+    assert "SLA and late_by_minutes must be non-zero and non-negative" in str(exc_info.value)
+
+def test_late_confirmation_rejects_negative_late_by_minutes() -> None:
+    """LATE_CONFIRMATION should reject a negative late_by_minutes value."""
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+
+    scenario = {
+        "scenario_id": "S-007",
+        "scenario_name": "LATE_CONFIRMATION",
+        "missing_counterparty_sla_minutes": 0,
+        "late_by_minutes": -1,
+    }
+
+    oms_events, broker_events, expected_result = generate_scenario(
+                trade=base_trade,
+                scenario=scenario,
+                rng=Random(12345),
+            )
+
+    with pytest.raises(ValueError) as exc_info:
+        assign_delivery_batches(oms_events, broker_events, scenario)
+
+    assert "SLA and late_by_minutes must be non-zero and non-negative" in str(exc_info.value)
+
+def test_late_confirmation_rejects_zero_sla() -> None:
+    """LATE_CONFIRMATION should reject a zero SLA value."""
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+
+    scenario = {
+        "scenario_id": "S-007",
+        "scenario_name": "LATE_CONFIRMATION",
+        "missing_counterparty_sla_minutes": 0,
+        "late_by_minutes": 1,
+    }
+
+    oms_events, broker_events, expected_result = generate_scenario(
+                trade=base_trade,
+                scenario=scenario,
+                rng=Random(12345),
+            )
+
+    with pytest.raises(ValueError) as exc_info:
+        assign_delivery_batches(oms_events, broker_events, scenario)
+
+    assert "SLA and late_by_minutes must be non-zero and non-negative" in str(exc_info.value)
+
+def test_late_confirmation_rejects_zero_late_by_minutes() -> None:
+    """LATE_CONFIRMATION should reject a zero late_by_minutes value."""
+    base_trade = generate_base_trade(1, date(2026, 9, 7), Random(12345))
+
+    scenario = {
+        "scenario_id": "S-007",
+        "scenario_name": "LATE_CONFIRMATION",
+        "missing_counterparty_sla_minutes": 1,
+        "late_by_minutes": 0,
+    }
+
+    oms_events, broker_events, expected_result = generate_scenario(
+                trade=base_trade,
+                scenario=scenario,
+                rng=Random(12345),
+            )
+
+    with pytest.raises(ValueError) as exc_info:
+        assign_delivery_batches(oms_events, broker_events, scenario)
+
+    assert "SLA and late_by_minutes must be non-zero and non-negative" in str(exc_info.value)
 
 @pytest.mark.skip(reason="Implement S-013 OUT_OF_ORDER_OMS.")
 def test_out_of_order_oms_delivers_v2_before_v1() -> None:
