@@ -974,11 +974,13 @@ def test_late_confirmation_uses_later_delivery_phase() -> None:
         scenario=scenario,
         rng=Random(12345),
     )
+    original_trade = dict(base_trade)
 
     delivery_batches = assign_delivery_batches(oms_events, broker_events, scenario)
 
     assert len(oms_events) == 1
     assert len(broker_events) == 1
+    assert base_trade == original_trade
     assert expected_result["expected_reconciliation_status"] == "MATCHED"
     assert expected_result["expected_break_types"] == []
     assert expected_result["scenario_id"] == "S-007"
@@ -995,6 +997,12 @@ def test_late_confirmation_uses_later_delivery_phase() -> None:
     assert oms_events[0]["currency"] == broker_events[0]["currency"]
     assert oms_events[0]["account_id"] == broker_events[0]["client_account"]
     assert oms_events[0]["broker_id"] == broker_events[0]["broker_id"]
+    assert oms_events[0]["venue_id"] == broker_events[0]["venue"]
+    assert oms_events[0]["trade_date"] == broker_events[0]["trade_date"]
+    assert oms_events[0]["execution_timestamp"] == broker_events[0]["execution_timestamp"]
+    assert oms_events[0]["settlement_date"] == broker_events[0]["settlement_date"]
+    assert oms_events[0]["instrument_type"] == broker_events[0]["instrument_type"]
+    assert expected_result["business_trade_id"] == base_trade["business_trade_id"]
     assert len(delivery_batches) == 2
     assert delivery_batches[0]["batch_id"] == "BATCH_001"
     assert delivery_batches[1]["batch_id"] == "BATCH_002"
@@ -1005,6 +1013,7 @@ def test_late_confirmation_uses_later_delivery_phase() -> None:
     assert delivery_batches[1]["broker_events"] == broker_events
     assert (delivery_batches[1]["delivery_offset_minutes"] > scenario["missing_counterparty_sla_minutes"])
     assert delivery_batches[1]["delivery_offset_minutes"] == 35
+    assert expected_result["expected_break_history"] == ["MISSING_CONFIRMATION"]
 
 def test_late_confirmation_rejects_negative_sla() -> None:
     """LATE_CONFIRMATION should reject a negative SLA value."""
@@ -1014,7 +1023,7 @@ def test_late_confirmation_rejects_negative_sla() -> None:
         "scenario_id": "S-007",
         "scenario_name": "LATE_CONFIRMATION",
         "missing_counterparty_sla_minutes": -1,
-        "late_by_minutes": 0,
+        "late_by_minutes": 1,
     }
 
     oms_events, broker_events, expected_result = generate_scenario(
@@ -1035,7 +1044,7 @@ def test_late_confirmation_rejects_negative_late_by_minutes() -> None:
     scenario = {
         "scenario_id": "S-007",
         "scenario_name": "LATE_CONFIRMATION",
-        "missing_counterparty_sla_minutes": 0,
+        "missing_counterparty_sla_minutes": 1,
         "late_by_minutes": -1,
     }
 
