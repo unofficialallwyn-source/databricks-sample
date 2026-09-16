@@ -78,7 +78,7 @@ CURRENT_BREAK_TYPES: dict[str, list[str]] = {
 }
 
 BREAK_HISTORY: dict[str, list[str]] = {
-    "S-007": ["MISSING_CONFIRMIRMATION"],
+    "S-007": ["MISSING_CONFIRMATION"],
     "S-009": ["MISSING_TRADE"],
     "S-012": ["PRICE_MISMATCH"],
     "S-031": ["MISSING_CONFIRMATION"],
@@ -93,7 +93,7 @@ VALIDATION_ERRORS: dict[str, list[str]] = {
     "S-028": ["INVALID_ENUM"],
 }
 
-MATCHED_SCENARIOS = {
+# Backward-compatible aliases retained for earlier milestones/tests.\nScenarioNameMap = SCENARIO_NAMES\nBreakTypeMap = CURRENT_BREAK_TYPES\nExpectedBreakHistoryMap = BREAK_HISTORY\n\nMATCHED_SCENARIOS = {
     "S-001",
     "S-003",
     "S-007",
