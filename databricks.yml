@@ -1,0 +1,16 @@
+bundle:
+  name: trade-reconciliation
+
+include:
+  - resources/pipelines/*.yaml
+
+targets:
+  dev:
+    default: true
+    mode: development
+
+    presets:
+      name_prefix: ""
+
+    workspace:
+      host: https://dbc-8a88764b-6068.cloud.databricks.com

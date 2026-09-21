@@ -1,0 +1,13 @@
+resources:
+  pipelines:
+    oms_bronze:
+      name: tr019_oms_bronze
+      catalog: workspace
+      schema: bronze
+      photon: true
+      serverless: true
+      continuous: false
+
+      libraries:
+        - file:
+            path: ../../src/trade_recon/pipelines/oms_bronze.py
