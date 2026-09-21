@@ -8,7 +8,7 @@ resources:
       serverless: true
       continuous: false
       configuration:
-        trade_recon.oms_bronze_table: ${var.catalog_name}.${var.silver_schema}.oms_trade_event_raw_lakeflow
+        trade_recon.oms_bronze_table: ${var.catalog_name}.${var.bronze_schema}.oms_trade_event_raw_lakeflow
 
       libraries:
         - file:

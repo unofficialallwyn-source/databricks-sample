@@ -5,7 +5,7 @@ OMS_BRONZE_TABLE = spark.conf.get(
     "trade_recon.oms_bronze_table"
 )
 
-dp.table(
+@dp.table(
     name="oms_trade_event_validated",
     comment="Validated and strongly typed OMS trade events"
 )
@@ -54,14 +54,8 @@ def oms_trade_event_validated():
         F.col("side"),
 
         # Economics
-        F.col("quantity")
-            .cast("decimal(18,6)")
-            .alias("quantity"),
-
-        F.col("price")
-            .cast("decimal(18,10)")
-            .alias("price"),
-
+        F.try_cast(F.col("quantity"), "decimal(18,6)").alias("quantity"),
+        F.try_cast(F.col("price"), "decimal(18,6)").alias("price"),
         F.col("currency"),
 
         # Account / broker
