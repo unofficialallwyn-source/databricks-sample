@@ -4,6 +4,26 @@ bundle:
 include:
   - resources/pipelines/*.yaml
 
+variables:
+  catalog_name:
+    description: Unity Catalog catalog for this environment
+
+  landing_schema:
+    description: Landing schema
+    default: landing
+
+  bronze_schema:
+    description: Bronze schema
+    default: bronze
+
+  silver_schema:
+    description: Silver schema
+    default: silver
+
+  source_volume:
+    description: Synthetic source file volume
+    default: synthetic_trade_files
+
 targets:
   dev:
     default: true
@@ -11,6 +31,9 @@ targets:
 
     presets:
       name_prefix: ""
+    
+    variables:
+      catalog_name: workspace
 
     workspace:
       host: https://dbc-8a88764b-6068.cloud.databricks.com

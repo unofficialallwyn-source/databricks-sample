@@ -5,6 +5,11 @@ from pyspark.sql.types import (
     StructField,
     StringType,
     IntegerType,
+    DoubleType,
+)
+
+OMS_SOURCE_PATH = spark.conf.get(
+    "trade_recon.oms_source_path"
 )
 
 oms_schema = StructType([
@@ -18,8 +23,8 @@ oms_schema = StructType([
     StructField("instrument_id", StringType(), True),
     StructField("instrument_type", StringType(), True),
     StructField("side", StringType(), True),
-    StructField("quantity", StringType(), True),
-    StructField("price", StringType(), True),
+    StructField("quantity", DoubleType(), True),
+    StructField("price", DoubleType(), True),
     StructField("currency", StringType(), True),
 
     StructField("account_id", StringType(), True),
@@ -62,8 +67,7 @@ def oms_trade_event_raw_lakeflow():
             .option("columnNameOfCorruptRecord", "_corrupt_record")
             .option("pathGlobFilter", "*.jsonl")
             .schema(oms_bronze_schema)
-            .load("/Volumes/workspace/landing/"
-                "synthetic_trade_files/*/oms")
+            .load(OMS_SOURCE_PATH)
             .select(
                 "*",
                 col("_metadata.file_path").alias("_source_file_path"),

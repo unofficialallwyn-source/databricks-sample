@@ -1,15 +1,17 @@
 from pyspark import pipelines as dp
 from pyspark.sql import functions as F
 
-@dp.table(
+OMS_BRONZE_TABLE = spark.conf.get(
+    "trade_recon.oms_bronze_table"
+)
+
+dp.table(
     name="oms_trade_event_validated",
     comment="Validated and strongly typed OMS trade events"
 )
 def oms_trade_event_validated():
 
-    bronze_data = spark.readStream.table(
-        "workspace.bronze.oms_trade_event_raw_lakeflow"
-    )
+    bronze_data = spark.readStream.table(OMS_BRONZE_TABLE)
 
     valid_data = bronze_data.filter(
         F.col("_rescued_data").isNull()
