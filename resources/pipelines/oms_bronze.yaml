@@ -1,0 +1,15 @@
+resources:
+  pipelines:
+    oms_bronze:
+      name: tr019_oms_bronze
+      catalog: ${var.catalog_name}
+      schema: ${var.bronze_schema}
+      photon: true
+      serverless: true
+      continuous: false
+      configuration:
+        trade_recon.oms_source_path: /Volumes/${var.catalog_name}/${var.landing_schema}/${var.source_volume}/*/oms
+
+      libraries:
+        - file:
+            path: ../../src/trade_recon/pipelines/oms_bronze.py
