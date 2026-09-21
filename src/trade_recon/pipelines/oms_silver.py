@@ -54,8 +54,14 @@ def oms_trade_event_validated():
         F.col("side"),
 
         # Economics
-        F.try_cast(F.col("quantity"), "decimal(18,6)").alias("quantity"),
-        F.try_cast(F.col("price"), "decimal(18,6)").alias("price"),
+        F.col("quantity")
+        .try_cast("decimal(18,6)")
+        .alias("quantity"),
+
+        F.col("price")
+        .try_cast("decimal(18,10)")
+        .alias("price"),
+        
         F.col("currency"),
 
         # Account / broker
