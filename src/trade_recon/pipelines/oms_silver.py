@@ -17,8 +17,8 @@ def oms_trade_event_validated():
         F.col("_rescued_data").isNull()
         & F.col("_corrupt_record").isNull()
     )
-    
-    return valid_data.select(
+
+    typed_data = valid_data.select(
         # Source identity
         F.col("event_id")
             .cast("string")
@@ -93,6 +93,15 @@ def oms_trade_event_validated():
         F.col("_source_file_modification_time"),
         F.col("_ingested_at"),
     )
+
+    validated_data = typed_data.filter(
+        F.col("source_trade_id").isNotNull()
+        & F.col("source_version").isNotNull()
+        & F.col("quantity").isNotNull()
+        & F.col("price").isNotNull()
+    )
+    
+    return validated_data
   
 dp.create_streaming_table(
     name="oms_trade_state_history"
