@@ -2,11 +2,13 @@ resources:
   pipelines:
     oms_silver:
       name: tr020_oms_silver
-      catalog: workspace
-      schema: silver
+      catalog: ${var.catalog_name}
+      schema: ${var.silver_schema}
       photon: true
       serverless: true
       continuous: false
+      configuration:
+        trade_recon.oms_bronze_table: ${var.catalog_name}.${var.silver_schema}.oms_trade_event_raw_lakeflow
 
       libraries:
         - file:

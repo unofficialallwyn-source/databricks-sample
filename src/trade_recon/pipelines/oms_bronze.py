@@ -5,7 +5,6 @@ from pyspark.sql.types import (
     StructField,
     StringType,
     IntegerType,
-    DoubleType,
 )
 
 OMS_SOURCE_PATH = spark.conf.get(
@@ -23,8 +22,8 @@ oms_schema = StructType([
     StructField("instrument_id", StringType(), True),
     StructField("instrument_type", StringType(), True),
     StructField("side", StringType(), True),
-    StructField("quantity", DoubleType(), True),
-    StructField("price", DoubleType(), True),
+    StructField("quantity", StringType(), True),
+    StructField("price", StringType(), True),
     StructField("currency", StringType(), True),
 
     StructField("account_id", StringType(), True),
