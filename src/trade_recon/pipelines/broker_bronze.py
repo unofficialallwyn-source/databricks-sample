@@ -14,7 +14,7 @@ BROKER_SOURCE_PATH = spark.conf.get(
 broker_schema = StructType([
     StructField("confirmation_event_id", StringType(), False),
     StructField("broker_trade_id", StringType(), False),
-    StructField("client_trade_id", IntegerType(), False),
+    StructField("client_trade_id", StringType(), True),
     StructField("confirmation_version", IntegerType(), False),
     StructField("confirmation_type", StringType(), False),
     StructField("confirmation_time", StringType(), False),
@@ -29,7 +29,7 @@ broker_schema = StructType([
 
     StructField("client_account", StringType(), True),
     StructField("broker_id", StringType(), True),
-    StructField("venue_id", StringType(), True),
+    StructField("venue", StringType(), True),
 
     StructField("trade_date", StringType(), True),
     StructField("execution_timestamp", StringType(), True),
