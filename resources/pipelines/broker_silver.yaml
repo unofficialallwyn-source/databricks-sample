@@ -1,0 +1,15 @@
+resources:
+  pipelines:
+    broker_silver:
+      name: tr023_broker_silver
+      catalog: ${var.catalog_name}
+      schema: ${var.silver_schema}
+      photon: true
+      serverless: true
+      continuous: false
+      configuration:
+        trade_recon.broker_bronze_table: ${var.catalog_name}.${var.bronze_schema}.broker_confirmation_raw_lakeflow
+
+      libraries:
+        - file:
+            path: ../../src/trade_recon/pipelines/broker_silver.py
