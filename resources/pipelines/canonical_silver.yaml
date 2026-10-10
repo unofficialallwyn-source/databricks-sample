@@ -1,0 +1,19 @@
+resources:
+  pipelines:
+    canonical_silver:
+      name: tr024_canonical_silver
+
+      catalog: ${var.catalog_name}
+      schema: ${var.silver_schema}
+
+      photon: true
+      serverless: true
+      continuous: false
+
+      configuration:
+        trade_recon.oms_validated_table: ${var.catalog_name}.${var.silver_schema}.oms_trade_event_validated
+        trade_recon.broker_validated_table: ${var.catalog_name}.${var.silver_schema}.broker_confirmation_validated
+
+      libraries:
+        - file:
+            path: ../../src/trade_recon/pipelines/canonical_silver.py
