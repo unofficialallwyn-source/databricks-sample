@@ -3,6 +3,7 @@ bundle:
 
 include:
   - resources/pipelines/*.yaml
+  - resources/jobs/*.yaml
 
 variables:
   catalog_name:
@@ -23,6 +24,10 @@ variables:
   source_volume:
     description: Synthetic source file volume
     default: synthetic_trade_files
+  
+  reconciliation_schema:
+    description: Reconciliation schema
+    default: reconciliation
 
 targets:
   dev:
