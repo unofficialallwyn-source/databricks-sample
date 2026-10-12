@@ -1,0 +1,24 @@
+resources:
+  jobs:
+    reconciliation_candidates:
+      name: tr025_reconciliation_candidates
+
+      tasks:
+        - task_key: build_reconciliation_candidates
+
+          spark_python_task:
+            python_file: ../../src/trade_recon/reconciliation/candidates.py
+
+            parameters:
+              - --source-table
+              - ${var.catalog_name}.${var.silver_schema}.trade_current
+
+              - --target-table
+              - ${var.catalog_name}.${var.reconciliation_schema}.reconciliation_candidate
+
+          environment_key: default
+
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "2"
