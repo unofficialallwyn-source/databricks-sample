@@ -143,6 +143,34 @@ def test_missing_confirmation_is_pending_until_sla(spark):
     assert after.break_types == ["MISSING_CONFIRMATION"]
 
 
+def test_oms_amendment_does_not_reset_missing_confirmation_sla(spark):
+    base = spark.createDataFrame([_base_candidate()])
+    amended_internal_only = (
+        base.withColumn("candidate_presence", F.lit("INTERNAL_ONLY"))
+        .withColumn("external_candidate_count", F.lit(0))
+        .withColumn("external_present", F.lit(False))
+        .withColumn("internal_source_version", F.lit(2))
+        .withColumn(
+            "internal_ingestion_timestamp",
+            F.lit("2026-10-19 11:40:00").cast("timestamp"),
+        )
+        .withColumn(
+            "previous_first_observed_at",
+            F.lit("2026-10-19 11:00:00").cast("timestamp"),
+        )
+    )
+
+    result = evaluate_reconciliation(
+        amended_internal_only,
+        missing_side_sla_minutes=30,
+        evaluation_time="2026-10-19 11:40:00",
+    ).first()
+
+    assert result.first_observed_at == datetime(2026, 10, 19, 11, 0)
+    assert result.reconciliation_status == "BREAK"
+    assert result.break_types == ["MISSING_CONFIRMATION"]
+
+
 def test_missing_trade_and_match_key_missing_are_distinct(spark):
     base = spark.createDataFrame([_base_candidate()])
     external_only = (
