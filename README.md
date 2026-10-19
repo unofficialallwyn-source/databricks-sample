@@ -1060,53 +1060,33 @@ Recommended coding sequence:
 20. scale profiles
 21. performance optimization only after correctness
 
-### Generator Method Scaffold
+### Synthetic Generator Implementation
 
-The feature branch contains:
+The deterministic generator is implemented in:
 
     src/trade_recon/synthetic/generator.py
 
-Only high-level method signatures are supplied.
-
-You are expected to implement the bodies.
-
-A corresponding test scaffold exists at:
+Unit coverage is maintained in:
 
     tests/unit/test_synthetic_generator.py
+    tests/unit/test_multi_broker_generator.py
 
-The tests are intentionally skipped until implementation begins. Remove the module-level skip incrementally as you implement behavior.
+The generator supports scenario-driven source events, staged delivery, expected-result manifests, and multiple broker feeds while keeping source payloads independent from reconciliation output.
 
 ## Feature Branch / Pull Request Workflow
 
-Current feature branch:
-
-    feature/TR-016-synthetic-data-generator
-
-Work only on the feature branch.
+All implementation changes use short-lived feature branches and pull requests into `main`.
 
 Recommended flow:
 
-    git checkout feature/TR-016-synthetic-data-generator
-
-    implement generator
-
-    run tests
-
-    commit changes
-
+    git checkout -b feature/<change-name>
+    implement and test
     push feature branch
+    raise PR -> main
+    review and resolve feedback
+    merge only after required checks and approval
 
-    raise PR:
-    feature/TR-016-synthetic-data-generator -> main
-
-The PR will be reviewed against:
-
-- TR-012 coding standards
-- TR-013 testing strategy
-- TR-014 Definition of Done
-- TR-015 generator contract
-
-Do not merge the PR until mandatory review comments are resolved.
+Pull requests are reviewed against the coding standards, testing strategy, Definition of Done, and the relevant functional contract.
 
 ## Main Branch Policy
 
