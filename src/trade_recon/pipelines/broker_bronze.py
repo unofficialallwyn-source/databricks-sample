@@ -46,7 +46,7 @@ broker_bronze_schema = StructType(
 
 @dp.table(
     name="broker_confirmation_raw_lakeflow",
-    comment="Raw Broker events ingested with Auto Loader"
+    comment="Raw broker events ingested with Auto Loader"
 )
 @dp.expect(
     "no_rescued_data",
