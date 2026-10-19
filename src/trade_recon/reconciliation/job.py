@@ -175,6 +175,22 @@ def update_break_lifecycle(
         )
 
 
+def attach_previous_sla_anchor(
+    candidates: DataFrame,
+    previous_state: DataFrame,
+) -> DataFrame:
+    previous_anchor = previous_state.select(
+        "candidate_id",
+        F.col("first_observed_at").alias("previous_first_observed_at"),
+    )
+
+    return candidates.join(
+        previous_anchor,
+        "candidate_id",
+        "left",
+    )
+
+
 def update_reconciliation_state(
     spark: SparkSession,
     evaluated: DataFrame,
@@ -232,8 +248,15 @@ def main():
     args = parse_args()
     spark = SparkSession.builder.getOrCreate()
 
+    candidates = spark.table(args.candidate_table)
+    if _table_exists(spark, args.current_table):
+        candidates = attach_previous_sla_anchor(
+            candidates,
+            spark.table(args.current_table),
+        )
+
     evaluated = evaluate_reconciliation(
-        spark.table(args.candidate_table),
+        candidates,
         price_tolerance=Decimal(args.price_tolerance),
         missing_side_sla_minutes=args.sla_minutes,
         evaluation_time=args.evaluation_time,
