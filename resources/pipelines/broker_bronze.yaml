@@ -9,7 +9,7 @@ resources:
       continuous: false
 
       configuration:
-        trade_recon.broker_source_path: /Volumes/${var.catalog_name}/${var.landing_schema}/${var.source_volume}/*/broker_a
+        trade_recon.broker_source_path: /Volumes/${var.catalog_name}/${var.landing_schema}/${var.source_volume}/*/broker_*
 
       libraries:
         - file:
