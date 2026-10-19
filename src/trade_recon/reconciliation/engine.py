@@ -65,7 +65,13 @@ def evaluate_reconciliation(
     external_cancelled = F.col("external_event_type") == "CANCEL"
     active_both = unique_both & ~internal_cancelled & ~external_cancelled
 
+    previous_anchor = (
+        F.col("previous_first_observed_at")
+        if "previous_first_observed_at" in candidates.columns
+        else F.lit(None).cast("timestamp")
+    )
     observed_at = F.coalesce(
+        previous_anchor,
         F.col("internal_ingestion_timestamp"),
         F.col("external_ingestion_timestamp"),
         F.col("internal_event_time"),
@@ -74,6 +80,8 @@ def evaluate_reconciliation(
 
     evaluated = candidates.withColumn("evaluated_at", _timestamp_literal(evaluation_time))
     evaluated = evaluated.withColumn("first_observed_at", observed_at)
+    if "previous_first_observed_at" in evaluated.columns:
+        evaluated = evaluated.drop("previous_first_observed_at")
     evaluated = evaluated.withColumn(
         "sla_due_at",
         F.col("first_observed_at")
