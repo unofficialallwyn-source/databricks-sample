@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 from decimal import Decimal
 
-from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql import Column, DataFrame, SparkSession
 from pyspark.sql import functions as F
 from pyspark.sql.types import (
     DateType,
@@ -50,7 +50,7 @@ def _current_breaks(evaluated: DataFrame) -> DataFrame:
     )
 
 
-def _new_break_id() -> F.Column:
+def _new_break_id() -> Column:
     return F.sha2(
         F.concat_ws(
             "||",
@@ -62,7 +62,7 @@ def _new_break_id() -> F.Column:
     )
 
 
-def _resolution_reason() -> F.Column:
+def _resolution_reason() -> Column:
     expression = None
     for break_type, reason in RESOLUTION_REASON_BY_BREAK.items():
         condition = F.col("break_type") == break_type
