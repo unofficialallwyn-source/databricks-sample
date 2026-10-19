@@ -8,33 +8,22 @@ The project is intentionally being implemented hands-on. Architecture, governanc
 
 ## Project Status
 
-Sprint 0 — Foundation: COMPLETE.
+The Databricks Free Edition functional MVP is implemented through reconciliation and Gold reporting.
 
-Completed design stories:
+Implemented milestones include:
 
-- TR-001 — Business workflow
-- TR-002 — Functional requirements
-- TR-003 — Non-functional requirements
-- TR-004 — Canonical trade model
-- TR-005 — Source contracts
-- TR-006 — Reconciliation rules
-- TR-007 — Databricks architecture
-- TR-008 — Unity Catalog structure
-- TR-009 — DEV / TEST / PROD strategy
-- TR-010 — Repository structure
-- TR-011 — Deployment strategy
-- TR-012 — Coding standards
-- TR-013 — Testing strategy
-- TR-014 — Definition of Done
-- TR-015 — Synthetic data generator design
+- synthetic OMS and broker feed generation with deterministic scenario oracles;
+- Bronze ingestion and Silver source-state history;
+- canonical current-state projection;
+- reconciliation candidate matching with explicit ambiguity detection;
+- configurable economic comparison rules and price tolerance;
+- missing-side SLA handling with PENDING and BREAK states;
+- automatic break open/resolution history;
+- multi-broker feed support;
+- broker-level Gold reconciliation and break metrics;
+- automated Python/PySpark unit tests.
 
-Current implementation story:
-
-- TR-016 / Jira SCRUM-37 — Implement synthetic trade data generator
-
-Current implementation branch:
-
-    feature/TR-016-synthetic-data-generator
+The next phase is hands-on functional validation in Free Edition. Azure migration and production cloud infrastructure remain deliberately deferred until the application behavior is proven.
 
 ## Business Objective
 
@@ -1071,53 +1060,33 @@ Recommended coding sequence:
 20. scale profiles
 21. performance optimization only after correctness
 
-### Generator Method Scaffold
+### Synthetic Generator Implementation
 
-The feature branch contains:
+The deterministic generator is implemented in:
 
     src/trade_recon/synthetic/generator.py
 
-Only high-level method signatures are supplied.
-
-You are expected to implement the bodies.
-
-A corresponding test scaffold exists at:
+Unit coverage is maintained in:
 
     tests/unit/test_synthetic_generator.py
+    tests/unit/test_multi_broker_generator.py
 
-The tests are intentionally skipped until implementation begins. Remove the module-level skip incrementally as you implement behavior.
+The generator supports scenario-driven source events, staged delivery, expected-result manifests, and multiple broker feeds while keeping source payloads independent from reconciliation output.
 
 ## Feature Branch / Pull Request Workflow
 
-Current feature branch:
-
-    feature/TR-016-synthetic-data-generator
-
-Work only on the feature branch.
+All implementation changes use short-lived feature branches and pull requests into `main`.
 
 Recommended flow:
 
-    git checkout feature/TR-016-synthetic-data-generator
-
-    implement generator
-
-    run tests
-
-    commit changes
-
+    git checkout -b feature/<change-name>
+    implement and test
     push feature branch
+    raise PR -> main
+    review and resolve feedback
+    merge only after required checks and approval
 
-    raise PR:
-    feature/TR-016-synthetic-data-generator -> main
-
-The PR will be reviewed against:
-
-- TR-012 coding standards
-- TR-013 testing strategy
-- TR-014 Definition of Done
-- TR-015 generator contract
-
-Do not merge the PR until mandatory review comments are resolved.
+Pull requests are reviewed against the coding standards, testing strategy, Definition of Done, and the relevant functional contract.
 
 ## Main Branch Policy
 

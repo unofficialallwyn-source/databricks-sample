@@ -24,7 +24,7 @@ def broker_confirmation_validated():
             .cast("string")
             .alias("source_event_id"),
 
-        F.lit("BROKER_A")
+        F.upper(F.trim(F.col("broker_id")))
             .alias("source_system"),
 
         F.lit("EXTERNAL_TRADE")
@@ -98,7 +98,8 @@ def broker_confirmation_validated():
     )
 
     required_identity = (
-        F.col("source_event_id").isNotNull()
+        F.col("source_system").isNotNull()
+        & F.col("source_event_id").isNotNull()
         & F.col("source_trade_id").isNotNull()
         & F.col("source_version").isNotNull()
         & F.col("source_event_type").isNotNull()

@@ -147,6 +147,7 @@ def generate_dataset(config: GeneratorConfig) -> GenerationManifest:
     overrides = config.get("scenario_overrides", {})
     if not isinstance(overrides, Mapping):
         raise ValueError("scenario_overrides must be a mapping")
+    broker_ids = _normalize_broker_ids(config.get("broker_ids", ("BROKER_A",)))
 
     rng = Random(seed)
     expected_results: list[dict[str, Any]] = []
@@ -165,7 +166,8 @@ def generate_dataset(config: GeneratorConfig) -> GenerationManifest:
             raise ValueError(f"scenario override for {scenario_id} must be a mapping")
         scenario.update(scenario_override)
 
-        trade = generate_base_trade(trade_index, business_date, rng)
+        trade = dict(generate_base_trade(trade_index, business_date, rng))
+        trade["broker_id"] = broker_ids[(trade_index - 1) % len(broker_ids)]
         oms_events, broker_events, expected_result = generate_scenario(trade, scenario, rng)
         batches = assign_delivery_batches(oms_events, broker_events, scenario)
 
@@ -190,17 +192,34 @@ def generate_dataset(config: GeneratorConfig) -> GenerationManifest:
     for batch_index, offset in enumerate(sorted(batch_groups), start=1):
         phase_dir = output_dir / f"batch_{batch_index:03d}_offset_{offset:05d}m"
         oms_dir = phase_dir / "oms"
-        broker_dir = phase_dir / "broker_a"
         oms_paths = write_oms_jsonl(batch_groups[offset]["oms_events"], oms_dir, records_per_file)
-        broker_paths = write_broker_csv(
-            batch_groups[offset]["broker_events"], broker_dir, records_per_file
-        )
+
+        broker_events_by_id: dict[str, list[Mapping[str, Any]]] = defaultdict(list)
+        for event in batch_groups[offset]["broker_events"]:
+            broker_events_by_id[str(event["broker_id"]).upper()].append(event)
+
+        broker_paths: list[Path] = []
+        broker_files_by_broker: dict[str, list[str]] = {}
+        for broker_id in sorted(broker_events_by_id):
+            broker_dir = phase_dir / broker_id.lower()
+            paths = write_broker_csv(
+                broker_events_by_id[broker_id],
+                broker_dir,
+                records_per_file,
+                file_prefix=broker_id.lower(),
+            )
+            broker_paths.extend(paths)
+            broker_files_by_broker[broker_id] = [
+                _relative_posix(path, output_dir) for path in paths
+            ]
+
         source_files.append(
             {
                 "batch_id": f"BATCH_{batch_index:03d}",
                 "delivery_offset_minutes": offset,
                 "oms_files": [_relative_posix(path, output_dir) for path in oms_paths],
                 "broker_files": [_relative_posix(path, output_dir) for path in broker_paths],
+                "broker_files_by_broker": broker_files_by_broker,
                 "oms_event_count": len(batch_groups[offset]["oms_events"]),
                 "broker_event_count": len(batch_groups[offset]["broker_events"]),
             }
@@ -211,6 +230,7 @@ def generate_dataset(config: GeneratorConfig) -> GenerationManifest:
         "seed": seed,
         "business_date": business_date.isoformat(),
         "trade_count": trade_count,
+        "broker_ids": list(broker_ids),
         "scenario_ids": scenario_ids,
         "scenario_counts": dict(sorted(scenario_counter.items())),
         "oms_event_count": total_oms,
@@ -402,7 +422,9 @@ def generate_scenario(
     elif scenario_id == "S-029":
         oms_events = generate_oms_events(trade, scenario, rng)
         broker_trade = copy.deepcopy(trade)
-        broker_trade["broker_id"] = "BROKER_B"
+        broker_trade["broker_id"] = (
+            "BROKER_B" if trade["broker_id"] != "BROKER_B" else "BROKER_A"
+        )
         broker_events = generate_broker_events(broker_trade, scenario, rng)
     elif scenario_id == "S-030":
         oms_events = generate_oms_events(trade, scenario, rng)
@@ -550,9 +572,12 @@ def write_oms_jsonl(
 
 
 def write_broker_csv(
-    events: Sequence[BrokerEvent], output_path: str | Path, records_per_file: int
+    events: Sequence[BrokerEvent],
+    output_path: str | Path,
+    records_per_file: int,
+    file_prefix: str = "broker_a",
 ) -> list[Path]:
-    """Write immutable Broker A CSV chunks and return file paths."""
+    """Write immutable Broker CSV chunks and return file paths."""
     if records_per_file <= 0:
         raise ValueError("records_per_file must be positive")
     output_dir = Path(output_path)
@@ -583,7 +608,7 @@ def write_broker_csv(
     ]
     paths: list[Path] = []
     for index, chunk in enumerate(_chunks(events, records_per_file), start=1):
-        path = output_dir / f"broker_a_part_{index:05d}.csv"
+        path = output_dir / f"{file_prefix}_part_{index:05d}.csv"
         with path.open("w", newline="", encoding="utf-8") as handle:
             writer = csv.DictWriter(handle, fieldnames=headers)
             writer.writeheader()
@@ -926,6 +951,23 @@ def _parse_business_date(value: Any) -> date:
     if isinstance(value, str):
         return date.fromisoformat(value)
     raise ValueError("business_date is required and must be YYYY-MM-DD or date")
+
+
+def _normalize_broker_ids(value: Any) -> tuple[str, ...]:
+    if isinstance(value, str):
+        raw_ids = [value]
+    else:
+        try:
+            raw_ids = list(value)
+        except TypeError as exc:
+            raise ValueError("broker_ids must be a string or a sequence of strings") from exc
+
+    broker_ids = tuple(str(item).strip().upper() for item in raw_ids if str(item).strip())
+    if not broker_ids:
+        raise ValueError("broker_ids must not be empty")
+    if len(set(broker_ids)) != len(broker_ids):
+        raise ValueError("broker_ids must not contain duplicates")
+    return broker_ids
 
 
 def _validate_scenario_ids(scenario_ids: Sequence[str]) -> None:

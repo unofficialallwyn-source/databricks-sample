@@ -1,0 +1,56 @@
+resources:
+  jobs:
+    trade_reconciliation:
+      name: trade_reconciliation_mvp
+
+      tasks:
+        - task_key: build_candidates
+          spark_python_task:
+            python_file: ../../src/trade_recon/reconciliation/candidates.py
+            parameters:
+              - --source-table
+              - ${var.catalog_name}.${var.silver_schema}.trade_current
+              - --target-table
+              - ${var.catalog_name}.${var.reconciliation_schema}.reconciliation_candidate
+          environment_key: default
+
+        - task_key: evaluate_reconciliation
+          depends_on:
+            - task_key: build_candidates
+          spark_python_task:
+            python_file: ../../src/trade_recon/reconciliation/job.py
+            parameters:
+              - --candidate-table
+              - ${var.catalog_name}.${var.reconciliation_schema}.reconciliation_candidate
+              - --current-table
+              - ${var.catalog_name}.${var.reconciliation_schema}.reconciliation_current
+              - --history-table
+              - ${var.catalog_name}.${var.reconciliation_schema}.reconciliation_history
+              - --break-active-table
+              - ${var.catalog_name}.${var.reconciliation_schema}.break_active
+              - --break-history-table
+              - ${var.catalog_name}.${var.reconciliation_schema}.break_history
+              - --price-tolerance
+              - ${var.price_tolerance}
+              - --sla-minutes
+              - ${var.missing_side_sla_minutes}
+          environment_key: default
+
+        - task_key: publish_gold_metrics
+          depends_on:
+            - task_key: evaluate_reconciliation
+          spark_python_task:
+            python_file: ../../src/trade_recon/gold/reconciliation_metrics.py
+            parameters:
+              - --source-table
+              - ${var.catalog_name}.${var.reconciliation_schema}.reconciliation_current
+              - --summary-table
+              - ${var.catalog_name}.${var.gold_schema}.reconciliation_summary_daily
+              - --break-summary-table
+              - ${var.catalog_name}.${var.gold_schema}.reconciliation_break_summary_daily
+          environment_key: default
+
+      environments:
+        - environment_key: default
+          spec:
+            environment_version: "2"

@@ -4,239 +4,159 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 
 
-def build_reconciliation_candidates(
-    trade_current: DataFrame,
-) -> DataFrame:
+_SIDE_COLUMNS = (
+    "canonical_record_id",
+    "source_system",
+    "source_trade_id",
+    "source_version",
+    "event_type",
+    "event_time",
+    "instrument_id",
+    "instrument_type",
+    "side",
+    "quantity",
+    "price",
+    "currency",
+    "account_id",
+    "trade_date",
+    "settlement_date",
+    "broker_id",
+    "venue_id",
+    "execution_timestamp",
+    "ingestion_timestamp",
+)
 
-    internal = (
-        trade_current
-        .filter(F.col("record_role") == "INTERNAL")
-        .select(
-            F.col("business_trade_id")
-                .alias("internal_business_trade_id"),
 
-            F.col("canonical_record_id")
-                .alias("internal_record_id"),
-
-            F.col("source_system")
-                .alias("internal_source_system"),
-
-            F.col("source_trade_id")
-                .alias("internal_source_trade_id"),
-
-            F.col("source_version")
-                .alias("internal_source_version"),
-
-            F.col("event_type")
-                .alias("internal_event_type"),
-
-            F.col("event_time")
-                        .alias("internal_event_time"),
-
-            F.col("instrument_id")
-                .alias("internal_instrument_id"),
-
-            F.col("instrument_type")
-                .alias("internal_instrument_type"),
-
-            F.col("side")
-                .alias("internal_side"),
-
-            F.col("quantity")
-                .alias("internal_quantity"),
-            F.col("price")
-                .alias("internal_price"),
-            F.col("currency")
-                .alias("internal_currency"),
-
-            F.col("account_id")
-                .alias("internal_account_id"),
-
-            F.col("trade_date")
-                .alias("internal_trade_date"),
-            F.col("settlement_date")
-                .alias("internal_settlement_date"),
-            
-            F.col("broker_id").alias("internal_broker_id"),
-            F.col("venue_id").alias("internal_venue_id"),
-            F.col("execution_timestamp")
-                .alias("internal_execution_timestamp")
-        )
+def _project_side(trade_current: DataFrame, role: str, prefix: str) -> DataFrame:
+    projected = trade_current.filter(F.col("record_role") == role).select(
+        F.col("business_trade_id").alias(f"{prefix}_business_trade_id"),
+        *[F.col(name).alias(f"{prefix}_{name}") for name in _SIDE_COLUMNS],
     )
 
-    external = (
-        trade_current
-        .filter(F.col("record_role") == "EXTERNAL")
-        .select(
-            F.col("business_trade_id")
-                .alias("external_business_trade_id"),
+    business_id = F.col(f"{prefix}_business_trade_id")
+    record_id = F.col(f"{prefix}_canonical_record_id")
 
-            F.col("canonical_record_id")
-                .alias("external_record_id"),
-
-            F.col("source_system")
-                .alias("external_source_system"),
-
-            F.col("source_trade_id")
-                .alias("external_source_trade_id"),
-
-            F.col("source_version")
-                .alias("external_source_version"),
-
-            F.col("event_type")
-                .alias("external_event_type"),
-
-            F.col("event_time")
-                        .alias("external_event_time"),
-
-            F.col("instrument_id")
-                .alias("external_instrument_id"),
-            F.col("instrument_type")
-                .alias("external_instrument_type"),
-            F.col("side")
-                .alias("external_side"),
-
-            F.col("quantity")
-                .alias("external_quantity"),
-            F.col("price")
-                .alias("external_price"),
-            F.col("currency")
-                .alias("external_currency"),
-
-            F.col("account_id")
-                .alias("external_account_id"),
-
-            F.col("trade_date")
-                .alias("external_trade_date"),
-            F.col("settlement_date")
-                .alias("external_settlement_date"),
-            F.col("broker_id").alias("external_broker_id"),
-            F.col("venue_id").alias("external_venue_id"),
-            F.col("execution_timestamp")
-                .alias("external_execution_timestamp"),
-        )
+    return projected.withColumn(
+        "candidate_key",
+        F.when(
+            business_id.isNull(),
+            F.concat(F.lit(f"{prefix.upper()}::"), record_id),
+        ).otherwise(business_id),
     )
 
-    joined = (
-        internal.alias("i")
-        .join(
-            external.alias("e"),
-            F.col("i.internal_business_trade_id")
-            == F.col("e.external_business_trade_id"),
-            "full_outer",
-        )
+
+def _candidate_counts(df: DataFrame, count_column: str) -> DataFrame:
+    return df.groupBy("candidate_key").agg(F.count(F.lit(1)).alias(count_column))
+
+
+def _unique_rows(df: DataFrame, count_column: str) -> DataFrame:
+    counts = _candidate_counts(df, count_column)
+    return (
+        df.join(counts, "candidate_key")
+        .filter(F.col(count_column) == 1)
+        .drop(count_column)
     )
 
-    candidates = joined.select(
-        F.coalesce(
-            F.col("i.internal_business_trade_id"),
-            F.col("e.external_business_trade_id"),
-        ).alias("business_trade_id"),
 
-        F.col("i.internal_record_id"),
-        F.col("e.external_record_id"),
+def build_reconciliation_candidates(trade_current: DataFrame) -> DataFrame:
+    """Build one reconciliation candidate row per business match key."""
+    internal = _project_side(trade_current, "INTERNAL", "internal")
+    external = _project_side(trade_current, "EXTERNAL", "external")
 
-        F.col("i.internal_source_system"),
-        F.col("i.internal_source_trade_id"),
-        F.col("i.internal_source_version"),
-        F.col("i.internal_event_type"),
-        F.col("i.internal_event_time"),
-        F.col("i.internal_instrument_id"),
-        F.col("i.internal_instrument_type"),
-        F.col("i.internal_side"),
-        F.col("i.internal_quantity"),
-        F.col("i.internal_price"),
-        F.col("i.internal_currency"),
-        F.col("i.internal_account_id"),
-        F.col("i.internal_trade_date"),
-        F.col("i.internal_settlement_date"),
-        F.col("i.internal_execution_timestamp"),
-        F.col("i.internal_broker_id"),
-        F.col("i.internal_venue_id"),
-        
+    internal_counts = _candidate_counts(internal, "internal_candidate_count")
+    external_counts = _candidate_counts(external, "external_candidate_count")
 
-        F.col("e.external_source_system"),
-        F.col("e.external_source_trade_id"),
-        F.col("e.external_source_version"),
-        F.col("e.external_event_type"),
-        F.col("e.external_event_time"),
-        F.col("e.external_instrument_id"),
-        F.col("e.external_instrument_type"),
-        F.col("e.external_side"),
-        F.col("e.external_quantity"),
-        F.col("e.external_price"),
-        F.col("e.external_currency"),
-        F.col("e.external_account_id"),
-        F.col("e.external_trade_date"),
-        F.col("e.external_settlement_date"),
-        F.col("e.external_execution_timestamp"),
-        F.col("e.external_broker_id"),
-        F.col("e.external_venue_id")
+    candidate_keys = (
+        internal_counts.select("candidate_key")
+        .unionByName(external_counts.select("candidate_key"))
+        .distinct()
     )
+
+    summary = (
+        candidate_keys.join(internal_counts, "candidate_key", "left")
+        .join(external_counts, "candidate_key", "left")
+        .fillna(0, subset=["internal_candidate_count", "external_candidate_count"])
+    )
+
+    internal_unique = _unique_rows(internal, "internal_candidate_count")
+    external_unique = _unique_rows(external, "external_candidate_count")
 
     candidates = (
-        candidates
+        summary.join(internal_unique, "candidate_key", "left")
+        .join(external_unique, "candidate_key", "left")
+        .withColumn(
+            "business_trade_id",
+            F.coalesce(
+                F.col("internal_business_trade_id"),
+                F.col("external_business_trade_id"),
+            ),
+        )
+        .withColumn("candidate_id", F.sha2(F.col("candidate_key"), 256))
         .withColumn(
             "internal_present",
-            F.col("internal_record_id").isNotNull(),
+            F.col("internal_candidate_count") > 0,
         )
         .withColumn(
             "external_present",
-            F.col("external_record_id").isNotNull(),
+            F.col("external_candidate_count") > 0,
+        )
+        .withColumn(
+            "match_key_missing",
+            (F.col("external_candidate_count") > 0)
+            & F.col("external_business_trade_id").isNull(),
+        )
+        .withColumn(
+            "candidate_presence",
+            F.when(
+                (F.col("internal_candidate_count") > 0)
+                & (F.col("external_candidate_count") > 0),
+                F.lit("BOTH_SIDES"),
+            )
+            .when(
+                F.col("internal_candidate_count") > 0,
+                F.lit("INTERNAL_ONLY"),
+            )
+            .otherwise(F.lit("EXTERNAL_ONLY")),
         )
     )
 
-    candidates = (
-            candidates
-            .withColumn(
-                "candidate_presence",
-                F.when(
-                    F.col("internal_present") & F.col("external_present"),
-                    "BOTH_SIDES"
-                ).when(
-                    F.col("internal_present"),
-                    "INTERNAL_ONLY"
-                ).otherwise(
-                    "EXTERNAL_ONLY"
-                )
-            )
-        )
+    ordered_columns = [
+        "candidate_id",
+        "candidate_key",
+        "business_trade_id",
+        "candidate_presence",
+        "internal_candidate_count",
+        "external_candidate_count",
+        "internal_present",
+        "external_present",
+        "match_key_missing",
+    ]
 
-    return candidates
+    side_columns = [
+        column
+        for column in candidates.columns
+        if column.startswith("internal_") or column.startswith("external_")
+    ]
+    side_columns = [column for column in side_columns if column not in ordered_columns]
+
+    return candidates.select(*ordered_columns, *side_columns)
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "--source-table",
-        required=True,
-    )
-
-    parser.add_argument(
-        "--target-table",
-        required=True,
-    )
-
+    parser.add_argument("--source-table", required=True)
+    parser.add_argument("--target-table", required=True)
     return parser.parse_args()
 
 
 def main():
-
     args = parse_args()
-
     spark = SparkSession.builder.getOrCreate()
 
-    trade_current = spark.table(
-        args.source_table
-    )
-
-    candidates = build_reconciliation_candidates(
-        trade_current
-    )
+    candidates = build_reconciliation_candidates(spark.table(args.source_table))
 
     (
-        candidates.write
-        .format("delta")
+        candidates.write.format("delta")
         .mode("overwrite")
         .option("overwriteSchema", "true")
         .saveAsTable(args.target_table)

@@ -29,6 +29,18 @@ variables:
     description: Reconciliation schema
     default: reconciliation
 
+  gold_schema:
+    description: Gold reporting schema
+    default: gold
+
+  price_tolerance:
+    description: Absolute price tolerance used by reconciliation
+    default: "0.01"
+
+  missing_side_sla_minutes:
+    description: Minutes allowed before a missing counterparty becomes a break
+    default: "30"
+
 targets:
   dev:
     default: true
