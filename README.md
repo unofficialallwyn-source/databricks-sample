@@ -8,33 +8,22 @@ The project is intentionally being implemented hands-on. Architecture, governanc
 
 ## Project Status
 
-Sprint 0 — Foundation: COMPLETE.
+The Databricks Free Edition functional MVP is implemented through reconciliation and Gold reporting.
 
-Completed design stories:
+Implemented milestones include:
 
-- TR-001 — Business workflow
-- TR-002 — Functional requirements
-- TR-003 — Non-functional requirements
-- TR-004 — Canonical trade model
-- TR-005 — Source contracts
-- TR-006 — Reconciliation rules
-- TR-007 — Databricks architecture
-- TR-008 — Unity Catalog structure
-- TR-009 — DEV / TEST / PROD strategy
-- TR-010 — Repository structure
-- TR-011 — Deployment strategy
-- TR-012 — Coding standards
-- TR-013 — Testing strategy
-- TR-014 — Definition of Done
-- TR-015 — Synthetic data generator design
+- synthetic OMS and broker feed generation with deterministic scenario oracles;
+- Bronze ingestion and Silver source-state history;
+- canonical current-state projection;
+- reconciliation candidate matching with explicit ambiguity detection;
+- configurable economic comparison rules and price tolerance;
+- missing-side SLA handling with PENDING and BREAK states;
+- automatic break open/resolution history;
+- multi-broker feed support;
+- broker-level Gold reconciliation and break metrics;
+- automated Python/PySpark unit tests.
 
-Current implementation story:
-
-- TR-016 / Jira SCRUM-37 — Implement synthetic trade data generator
-
-Current implementation branch:
-
-    feature/TR-016-synthetic-data-generator
+The next phase is hands-on functional validation in Free Edition. Azure migration and production cloud infrastructure remain deliberately deferred until the application behavior is proven.
 
 ## Business Objective
 
